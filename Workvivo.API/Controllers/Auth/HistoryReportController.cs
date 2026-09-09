@@ -1,4 +1,5 @@
-﻿namespace Workvivo.API.Controllers.Auth;
+﻿using Workvivo.Infrastructure.Seeding;
+namespace Workvivo.API.Controllers.Auth;
 public class HistoryReportController : ApiControllersBase
 {
     private readonly IAccessLogService _accessLogService;
@@ -7,6 +8,7 @@ public class HistoryReportController : ApiControllersBase
         _accessLogService = accessLogService;
     }
     [HttpPost]
+    [HasPermission(Permissions.AuditLog.View)]
     [Route(RouteClass.HistoryReport.GetHistoryReport)]
     public async Task<IActionResult> GetHistoryReport(AccessLogFilterModel filter) => Ok(await _accessLogService.GetAccessLogs(filter));
     [HttpGet]

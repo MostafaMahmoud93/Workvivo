@@ -4069,6 +4069,11 @@ namespace Workvivo.Infrastructure.Migrations
                         {
                             UserId = new Guid("8f6c1f5a-3c9e-4c2b-9d17-2a5b4e7c1d90"),
                             RoleId = new Guid("b2d4e6f8-1a3c-4e5f-8b7a-9c0d1e2f3a4b")
+                        },
+                        new
+                        {
+                            UserId = new Guid("8f6c1f5a-3c9e-4c2b-9d17-2a5b4e7c1d90"),
+                            RoleId = new Guid("cadba0a2-ba84-9d11-0f46-ada26199cc0c")
                         });
                 });
 
@@ -4079,6 +4084,9 @@ namespace Workvivo.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<bool>("Is_Deleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("Is_Granted")
                         .HasColumnType("bit");
 
                     b.Property<Guid>("Link_Screen_Action_Id")
@@ -5743,6 +5751,9 @@ namespace Workvivo.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<string>("Permission_Key")
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<Guid>("Screen_Action_Id")
                         .HasColumnType("uniqueidentifier");
 
@@ -5757,7 +5768,9 @@ namespace Workvivo.Infrastructure.Migrations
                     b.Property<Guid>("User_Id")
                         .HasColumnType("uniqueidentifier");
 
-                    b.ToTable("VW_UserActions");
+                    b.ToTable((string)null);
+
+                    b.ToView("VW_UserActions", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>

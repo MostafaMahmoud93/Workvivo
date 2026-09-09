@@ -34,6 +34,13 @@ public sealed class TransactionBehavior<TRequest, TResponse> : IPipelineBehavior
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
+        // A handler that manages its own persistence opts out. See
+        // INonTransactionalCommand for why that is ever the right thing to do.
+        if (request is INonTransactionalCommand)
+        {
+            return await next();
+        }
+
         var isCommand = request is ICommand || IsGenericCommand(typeof(TRequest));
         if (!isCommand)
         {

@@ -3,11 +3,13 @@ public class GroupActionService : ServiceBase, IGroupActionService
 {
     private readonly IConfiguration _configuration;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPermissionService _permissionService;
     private readonly IMapper _mapper;
-    public GroupActionService(IUnitOfWork unitOfWork, IMapper mapper, IConfiguration configuration, IUserAccessor userAccessor) : base(configuration, userAccessor)
+    public GroupActionService(IUnitOfWork unitOfWork, IMapper mapper, IConfiguration configuration, IUserAccessor userAccessor, IPermissionService permissionService) : base(configuration, userAccessor)
     {
         _configuration = configuration;
         _unitOfWork = unitOfWork;
+        _permissionService = permissionService;
         _mapper = mapper;
     }
 
@@ -29,6 +31,15 @@ public class GroupActionService : ServiceBase, IGroupActionService
             }
 
             int result = await _unitOfWork.SaveChangesAsync();
+
+            // Changing a role's grants changes what every holder of that role can do,
+            // so every one of their cached permission sets has to go. Without this the
+            // change arrives gradually as individual entries expire - tolerable for a
+            // grant, not for a revocation.
+            if (result > 0)
+            {
+                await _permissionService.InvalidateRoleAsync(groupActionModel.GroupId);
+            }
 
             return new ServiceResponse<bool> { Success = result > 0, Message = ClutureResource.SavedSuccessfully };
         }
@@ -80,6 +91,11 @@ public class GroupActionService : ServiceBase, IGroupActionService
             }
 
             int result = await _unitOfWork.SaveChangesAsync();
+
+            if (result > 0)
+            {
+                await _permissionService.InvalidateAsync(userActionModel.UserId);
+            }
 
             return new ServiceResponse<bool> { Success = result > 0, Message = ClutureResource.SavedSuccessfully };
         }

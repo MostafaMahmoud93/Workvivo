@@ -1,4 +1,5 @@
-﻿namespace Workvivo.API.Controllers.Auth;
+﻿using Workvivo.Infrastructure.Seeding;
+namespace Workvivo.API.Controllers.Auth;
 public class SysSettingController : ApiControllersBase
 {
     private readonly ISysSettingService _sysSettingService;
@@ -13,6 +14,7 @@ public class SysSettingController : ApiControllersBase
 
 
     [HttpPost]
+    [HasPermission(Permissions.Settings.Manage)]
     [Route(RouteClass.SysSetting.UpdateSystemStamp)]
     public async Task<IActionResult> UpdateSystemStamp(IFormFile stampPicture) =>
         Ok(await _sysSettingService.UpdateSystemStamp(stampPicture));

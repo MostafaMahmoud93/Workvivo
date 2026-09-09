@@ -41,6 +41,7 @@ internal static class ReferenceDataSeeder
         SeedScreens(builder);
         SeedPermissions(builder);
         SeedRolePermissions(builder);
+        SeedBootstrapAdministrator(builder);
         SeedRecognitionTypes(builder);
         SeedDocumentCategories(builder);
     }
@@ -295,6 +296,29 @@ internal static class ReferenceDataSeeder
             .ToArray();
 
         builder.Entity<GroupPermissions>().HasData(grants);
+    }
+
+    #endregion
+
+    #region Bootstrap administrator
+
+    /// <summary>
+    /// Puts the seeded account into the Super Admin role.
+    ///
+    /// Without this the system ships unadministrable: the roles and permissions exist,
+    /// but nobody holds Role.Manage, so there is no one who can grant it - the only way
+    /// out would be editing the database by hand.
+    ///
+    /// This is the one account that has to be dealt with before going live: change its
+    /// password, or disable it once a real administrator exists.
+    /// </summary>
+    private static void SeedBootstrapAdministrator(ModelBuilder builder)
+    {
+        builder.Entity<UserGroupsLink>().HasData(new UserGroupsLink
+        {
+            UserId = SystemUserId,
+            RoleId = RoleId(Roles.SuperAdmin),
+        });
     }
 
     #endregion

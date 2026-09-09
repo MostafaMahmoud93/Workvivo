@@ -6,7 +6,9 @@ public class ScreenController : ApiControllersBase
     {
         _screenService = screenService;
     }
-    [AllowAnonymous]
+    // Was [AllowAnonymous]: this builds the navigation menu from the caller's own
+    // permissions, so without an identity it cannot produce a correct answer, and it
+    // exposed the administrative screen structure to signed-out visitors.
     [HttpGet]
     [Route(RouteClass.Screen.GetScreens)]
     public async Task<IActionResult> GetScreens() =>

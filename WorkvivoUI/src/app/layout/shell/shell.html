@@ -8,8 +8,8 @@
 
   <div class="shell__account">
     <app-language-toggle />
-    @if (session(); as current) {
-      <span class="shell__who">{{ current.userType ?? '-' }}</span>
+    @if (user(); as current) {
+      <span class="shell__who" dir="auto">{{ current.displayName ?? current.userName }}</span>
     }
     <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="signOut()">
       {{ text().app.signOut }}

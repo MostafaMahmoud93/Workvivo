@@ -4,29 +4,38 @@
     <p>{{ text().homePage.lede }}</p>
   </header>
 
-  @if (session(); as current) {
+  @if (user(); as current) {
     <dl class="home__facts">
       <div>
-        <dt>{{ text().homePage.userId }}</dt>
-        <dd dir="auto">{{ current.userId ?? '-' }}</dd>
+        <dt>{{ text().homePage.displayName }}</dt>
+        <dd dir="auto">{{ current.displayName ?? current.userName }}</dd>
       </div>
       <div>
-        <dt>{{ text().homePage.userType }}</dt>
-        <dd dir="auto">{{ current.userType ?? '-' }}</dd>
+        <dt>{{ text().homePage.userId }}</dt>
+        <dd dir="auto">{{ current.userId }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().homePage.roles }}</dt>
+        <dd dir="auto">{{ rolesLabel() }}</dd>
       </div>
       <div>
         <dt>{{ text().homePage.administrator }}</dt>
         <dd>{{ isAdmin() ? text().homePage.yes : text().homePage.no }}</dd>
       </div>
       <div>
-        <dt>{{ text().homePage.tokenExpires }}</dt>
-        <dd>{{ expiresAtLabel() }}</dd>
-      </div>
-      <div>
         <dt>{{ text().homePage.permittedActions }}</dt>
-        <dd>{{ actionCount() }}</dd>
+        <dd>{{ permissionCount() }}</dd>
       </div>
     </dl>
+
+    <!--
+      Demonstrates the directive: this block is present for someone holding
+      Role.Manage and absent for everyone else. It hides the control; the endpoint
+      behind it is what actually refuses.
+    -->
+    <p class="home__gated" *appHasPermission="'Role.Manage'">
+      {{ text().homePage.adminOnly }}
+    </p>
   } @else {
     <p class="home__empty">{{ text().homePage.noSession }}</p>
   }

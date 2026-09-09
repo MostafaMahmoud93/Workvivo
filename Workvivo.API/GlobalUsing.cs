@@ -31,3 +31,5 @@ global using Workvivo.API.Filters;
 global using System.Globalization;
 global using Workvivo.API.Bases;
 global using System.Text;
+global using Microsoft.AspNetCore.RateLimiting;
+global using Workvivo.API.Authorization;

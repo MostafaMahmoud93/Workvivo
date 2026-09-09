@@ -4,6 +4,8 @@ using Serilog;
 using Workvivo.API.Middleware;
 using Workvivo.API.Options;
 using Workvivo.Application;
+using Workvivo.Application.Features.Auth;
+using Workvivo.Infrastructure.Identity;
 using Workvivo.Infrastructure;
 
 // A bootstrap logger, so a failure during configuration (a missing connection string,
@@ -33,6 +35,13 @@ try
         .ValidateOnStart();
 
     builder.Services.Configure<CorsOptions>(builder.Configuration.GetSection(CorsOptions.SectionName));
+
+    builder.Services.Configure<AuthenticationSettings>(
+        builder.Configuration.GetSection(AuthenticationSettings.SectionName));
+
+    // Infrastructure needs the same token settings but must not reference the API
+    // project, so the validated values are copied across rather than the type shared.
+    builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection(JwtOptions.SectionName));
 
     // MailSettings and UploadPath keep their existing singleton registration so the
     // template's MailService and FileManager keep working unchanged.

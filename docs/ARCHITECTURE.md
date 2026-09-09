@@ -1371,3 +1371,123 @@ template's existing rows, and `has-pending-model-changes` reports the model clea
 but never `ToView(...)`. The 100 role grants now exist in `Security_GroupPermissions`, but nothing
 flattens them, so permission checks still resolve to zero. That is Phase 4's first task, along
 with replacing the `.Result`-calling `ActionFilter`.
+
+---
+
+## Appendix F — Phase 4 record
+
+Authentication and authorisation. Mostly a **replacement** of template code rather than
+an addition to it.
+
+### The bug that made every permission check meaningless
+
+`VW_UserActions` was configured with `HasNoKey()` but never `ToView(...)`, so EF scaffolded
+it as an ordinary **table**. It was created empty, nothing ever wrote to it, and the three
+things that read it — token issuance, the permission filter, the navigation menu — all
+resolved to "no permissions".
+
+Silently. An empty result is indistinguishable from a user who genuinely has none, so the
+system looked healthy while authorising nothing.
+
+Fixed by `PermissionViewAndUserDeny`: the table is dropped and a real view created. The view
+also encodes the resolution order, so no C# re-implements it:
+
+1. a user-level **deny** beats everything;
+2. a user-level **grant** applies;
+3. otherwise any of the user's roles granting it applies;
+4. deactivated or deleted accounts resolve to nothing — revocation takes effect on the next
+   check, not at the next sign-in.
+
+Verified against the database: 0 permissions before, 11 after (template role), 23 with
+Super Admin, 0 for a denied permission, 0 for a deactivated account.
+
+### Two bugs found by testing, not by reading
+
+**Family revocation was being rolled back.** `RefreshTokenCommand` is a command, so
+`TransactionBehavior` wrapped it; the handler revokes the compromised token family and then
+throws to reject the replay — and the rollback undid the revocation. The attacker's replay
+was refused while the legitimate session stayed alive, which is exactly what family
+revocation exists to prevent. Fixed with an explicit `INonTransactionalCommand` opt-out.
+Pinned by a test.
+
+**Refresh was rotating a token and then discarding it.** `AuthSessionFactory` called
+`IssueAsync` unconditionally, so every refresh minted a *new family* and orphaned the rotated
+token. Revoking a compromised family could therefore never reach the token the client held.
+Fixed by splitting the factory into `CreateForSignInAsync` (new family) and
+`CreateForRefreshAsync` (carries the rotation through).
+
+Neither would have been caught by the code compiling or by the happy path working. Both
+needed the replay actually attempted end to end.
+
+### The cookie path trap
+
+The refresh cookie is scoped `Path=/api/auth` so a fourteen-day credential is not attached to
+every feed request. Cookie path matching is **case-sensitive** (RFC 6265) in curl and in every
+browser, while ASP.NET routing is case-insensitive — so `/api/Auth/refresh` routed fine and
+silently carried no cookie, failing with a 401 that looked exactly like an expired session.
+The auth routes are now lowercase, with a comment saying why, and a test asserts it.
+
+### Session design
+
+| | |
+| --- | --- |
+| Access token | JWT, 15 minutes, **memory only** — never localStorage |
+| Refresh token | 256-bit random, 14 days, **HttpOnly `__Host-` cookie**, `SameSite=Strict`, `Path=/api/auth` |
+| At rest | Only a SHA-256 hash of the refresh token is stored |
+| On use | Rotated; the predecessor is revoked in the same `SaveChanges` |
+| On replay | The whole family is revoked — both sessions end |
+| Permissions | **Not** in the token; resolved per request and cached 5 minutes |
+
+Permissions are deliberately absent from the JWT. A token cannot be recalled, so a permission
+baked into one keeps working until it expires; resolving per request bounds a revocation to
+the cache lifetime instead, and keeps the token small.
+
+An XSS flaw now yields a 15-minute token instead of a 14-day one, and the cookie is out of
+JavaScript's reach entirely.
+
+### Privilege escalation closed
+
+The base controller carries `[Authorize]`, and the filter meant to enforce permissions was
+**commented out** — so *any authenticated employee* could create users, edit roles, and grant
+themselves permissions through `AddEditUserAction`.
+
+`[HasPermission]` now guards user management (`Employee.*`), role and permission management
+(`Role.Manage`), the audit report (`AuditLog.View`) and system settings (`Settings.Manage`).
+Self-service endpoints — your own avatar, your own profile — remain authentication-only, since
+requiring `Employee.Edit` would stop people updating their own picture. `ScreenController` was
+`[AllowAnonymous]` while building a menu from the caller's permissions; it now requires
+authentication.
+
+Verified: SuperAdmin 200, unauthenticated 401, user-level deny 403 while an unaffected
+permission still returns 200.
+
+### Retired
+
+- **`ActionFilter`** — called `.Result` on an async permission lookup (blocks a request thread;
+  deadlocks under load) and matched permissions by URL prefix.
+- **`AllowFiltered`** — a hard-coded list of exempt controller and action names, matched on bare
+  names, so `GetCurrentUser` on *any* controller was exempt everywhere.
+
+Both are kept as obsolete no-ops so any stray registration still compiles.
+
+### Cache invalidation
+
+`GroupActionService` now invalidates on every permission change — `InvalidateRoleAsync` for a
+role grant (which affects every holder), `InvalidateAsync` for a per-user override. Without it a
+revocation would take up to five minutes to bite, which an administrator has every reason to
+believe was immediate. A change made **directly in the database** still waits for the entry to
+expire; that is the documented limit of the design.
+
+### Verification
+
+- **141 backend tests** (was 114) and **18 Angular tests** (was 11), all passing.
+- Browser-driven: sign-in, `*appHasPermission` gating, and silent session restore on reload —
+  the session came back from the HttpOnly cookie alone, with the access token never persisted.
+
+### Deferred to a later phase
+
+Password reset and email verification need the mail pipeline, which arrives with notifications.
+`IResourceAuthorizer<T>` is defined but has no implementations yet — the IDOR checks belong with
+the resources they guard, from the feed phase onward. Refresh-token replay is covered by
+end-to-end verification but not yet by an automated test; that needs the Testcontainers fixture,
+since `ExecuteUpdate` has no in-memory equivalent.

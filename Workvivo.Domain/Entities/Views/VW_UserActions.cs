@@ -10,6 +10,13 @@
         public string Action_Name_Ar { get; set; }
         public string Action_Name_En { get; set; }
         public string Action_Code { get; set; }
+
+        /// <summary>
+        /// Named permission this row grants, for example <c>Post.Create</c>.
+        /// Null for the template's original screen-action rows, which have no named
+        /// equivalent.
+        /// </summary>
+        public string? Permission_Key { get; set; }
         [NotMapped]
         public string? Screen_Description
         {

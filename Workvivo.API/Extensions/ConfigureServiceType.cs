@@ -1,4 +1,7 @@
-﻿namespace Workvivo.API.Extensions;
+﻿using Workvivo.Application.Features.Auth.Services;
+using Workvivo.Infrastructure.Identity;
+
+namespace Workvivo.API.Extensions;
 public static class ConfigureServiceType
 {
     public static void AddServiceLayer(this IServiceCollection services)
@@ -14,6 +17,17 @@ public static class ConfigureServiceType
         services.AddScoped(typeof(IBaseService), typeof(ServiceBase));
         services.AddScoped(typeof(IMailService), typeof(MailService));
         services.AddScoped(typeof(IFileManager), typeof(FileManager));
+
+        // Authentication and authorisation (phase 4).
+        services.AddScoped<IPermissionService, PermissionService>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IRefreshTokenService, RefreshTokenService>();
+        services.AddScoped<IAuthSessionFactory, AuthSessionFactory>();
+
+        // A policy provider rather than a policy per permission: permissions are rows
+        // in a table, so the set is not known at start-up.
+        services.AddSingleton<IAuthorizationPolicyProvider, PermissionPolicyProvider>();
+        services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
 
         //services.AddScoped<HistoryFileFilter>();
         //services.AddScoped<ActionFilter>();

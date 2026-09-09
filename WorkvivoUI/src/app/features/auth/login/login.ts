@@ -41,7 +41,7 @@ export class Login {
     this.auth.login(this.form.getRawValue()).subscribe({
       next: (response) => {
         this.busy.set(false);
-        if (response.success && response.data?.token) {
+        if (response.success && response.data?.accessToken) {
           void this.router.navigateByUrl(this.returnUrl());
           return;
         }

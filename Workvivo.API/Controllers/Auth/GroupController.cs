@@ -1,4 +1,5 @@
-﻿namespace Workvivo.API.Controllers.Auth;
+﻿using Workvivo.Infrastructure.Seeding;
+namespace Workvivo.API.Controllers.Auth;
 public class GroupController : ApiControllersBase
 {
     private readonly IGroupService _groupService;
@@ -9,6 +10,7 @@ public class GroupController : ApiControllersBase
 
 
     [HttpGet]
+    [HasPermission(Permissions.Role.Manage)]
     [Route(RouteClass.Group.GetGroups)]
     public async Task<IActionResult> GetGroups() =>
         Ok(await _groupService.GetGroups());

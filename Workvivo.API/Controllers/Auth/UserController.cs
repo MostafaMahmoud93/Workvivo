@@ -1,4 +1,5 @@
-﻿namespace Workvivo.API.Controllers.Auth;
+﻿using Workvivo.Infrastructure.Seeding;
+namespace Workvivo.API.Controllers.Auth;
 public class UserController : ApiControllersBase
 {
     private readonly IApplicationUserService _applicationUserService;
@@ -7,11 +8,13 @@ public class UserController : ApiControllersBase
         _applicationUserService = applicationUserService;
     }
     [HttpPost]
+    [HasPermission(Permissions.Employee.Create)]
     [Route(RouteClass.User.CreateUser)]
     public async Task<IActionResult> CreateUser([FromForm] AddUserModel newUser) =>
         Ok(await _applicationUserService.CreateUser(newUser));
 
     [HttpPost]
+    [HasPermission(Permissions.Employee.Edit)]
     [Route(RouteClass.User.EditUser)]
     public async Task<IActionResult> EditUser([FromForm] EditUserModel newUser) =>
         Ok(await _applicationUserService.EditUser(newUser));
@@ -22,6 +25,7 @@ public class UserController : ApiControllersBase
         Ok(await _applicationUserService.UpdateImgeProfileUser(ProfilePicture));
 
     [HttpGet]
+    [HasPermission(Permissions.Employee.View)]
     [Route(RouteClass.User.GetUsers)]
     public async Task<IActionResult> GetUsers() =>
         Ok(await _applicationUserService.GetUsers());
@@ -42,6 +46,7 @@ public class UserController : ApiControllersBase
         Ok((await _applicationUserService.GetCurrentUser()).Data);
 
     [HttpPost]
+    [HasPermission(Permissions.Employee.Delete)]
     [Route(RouteClass.User.DeleteUser)]
     public async Task<IActionResult> DeleteUser(Guid userId) =>
         Ok((await _applicationUserService.DeleteUser(userId.ToString())).Data);

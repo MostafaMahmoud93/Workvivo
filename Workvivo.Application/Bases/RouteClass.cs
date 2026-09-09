@@ -4,10 +4,24 @@ public static class RouteClass
     /// <summary>
     /// Ex. api[key word]/Auth[Controller Name]/Login[Action Name]
     /// </summary>
+    /// <summary>
+    /// Auth routes are lowercase, and must stay that way.
+    ///
+    /// The refresh cookie is scoped with Path=/api/auth so the long-lived credential is
+    /// not attached to every request. Cookie path matching is case-sensitive (RFC 6265),
+    /// in curl and in every browser - so a request to /api/Auth/Refresh does not carry a
+    /// cookie set for /api/auth, and refresh silently fails with a 401 that looks like an
+    /// expired session. ASP.NET routing is case-insensitive and hides this server-side.
+    /// </summary>
     public static class Auth
     {
-        public const string Login = "api/Auth/Login";
-        public const string Test = "api/Auth/Test";
+        public const string Login = "api/auth/login";
+        public const string Refresh = "api/auth/refresh";
+        public const string Logout = "api/auth/logout";
+        public const string LogoutAll = "api/auth/logout-all";
+        public const string Me = "api/auth/me";
+        public const string ChangePassword = "api/auth/change-password";
+        public const string Test = "api/auth/test";
     }
     public static class User
     {
@@ -31,6 +45,25 @@ public static class RouteClass
         public const string EditGroup = "api/Group/EditGroup";
         public const string GetGroups = "api/Group/GetGroups";
     }
+    public static class Employees
+    {
+        public const string Directory = "api/employees";
+        public const string Suggest = "api/employees/suggest";
+        public const string Me = "api/employees/me";
+        public const string UpdateMe = "api/employees/me";
+        public const string Profile = "api/employees/{employeeId:guid}";
+        public const string Follow = "api/employees/{employeeId:guid}/follow";
+        public const string Unfollow = "api/employees/{employeeId:guid}/follow";
+    }
+
+    public static class OrganizationRoutes
+    {
+        public const string DepartmentTree = "api/organization/departments/tree";
+        public const string Lookups = "api/organization/lookups";
+        public const string SaveDepartment = "api/organization/departments";
+        public const string DeleteDepartment = "api/organization/departments/{id:guid}";
+    }
+
     public static class Screen
     {
         public const string GetScreens = "api/Screen/GetScreens";

@@ -1,4 +1,5 @@
-﻿namespace Workvivo.API.Controllers.Auth;
+﻿using Workvivo.Infrastructure.Seeding;
+namespace Workvivo.API.Controllers.Auth;
 public class GroupActionController : ApiControllersBase
 {
     private readonly IGroupActionService _groupActionService;
@@ -8,6 +9,7 @@ public class GroupActionController : ApiControllersBase
     }
 
     [HttpPost]
+    [HasPermission(Permissions.Role.Manage)]
     [Route(RouteClass.GroupAction.AddEditGroupAction)]
     public async Task<IActionResult> AddEditGroupAction(GroupActionModel groupActionModel)
     => Ok(await _groupActionService.AddEditGroupAction(groupActionModel));

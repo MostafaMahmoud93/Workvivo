@@ -17,7 +17,7 @@ export class Shell {
   private readonly auth = inject(AuthService);
   private readonly locale = inject(LocaleService);
 
-  readonly session = this.auth.session;
+  readonly user = this.auth.user;
   readonly text = this.locale.text;
 
   signOut(): void {
