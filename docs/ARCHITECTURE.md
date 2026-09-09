@@ -1268,3 +1268,106 @@ that raises them — an event nobody publishes is a guess about a feature that h
 EF configurations, indexes, constraints and the migration are Phase 3 — including the
 `Audience_Key` unique and covering indexes, the `CHECK` constraint mirroring the self-recognition
 rule, `RowVersion` mapping, soft-delete query filters, and the seed data.
+
+---
+
+## Appendix E — Phase 3 record
+
+EF Core configurations, indexes, constraints, the migration, and reference data.
+
+### Applied to the database
+
+`AddPlatformDomain` — additive only; its `Up()` contains no drop, alter or delete.
+
+| | |
+| --- | ---: |
+| Tables (total) | 76 |
+| Non-clustered indexes | 163 |
+| Filtered indexes | 17 |
+| Unique indexes | 204 |
+| Check constraints | 11 |
+| Foreign keys | 120 |
+
+### Decisions
+
+**No global query filters.** Reading `BaseRepository.CommonContext()` showed the template
+already applies `Where(a => !a.Is_Deleted)` to every repository query. Adding EF query filters
+would have been a *second* mechanism for the same rule — two places to get it wrong, and a
+behaviour change for any existing service that queries the context directly. Soft delete stays
+where the template put it, and `Is_Deleted` leads the composite indexes instead, because every
+repository query carries that predicate.
+
+**One shared audience mapping.** `AudienceConfiguration.Apply` gives all five audience tables the
+same widths, the same unique `(owner, key)` constraint and the same covering index on
+`Audience_Key`. Repeating that five times is how one of them ends up subtly different, and a
+missing index there does not fail — it just makes the feed slow at exactly the scale where it
+matters.
+
+**Delete behaviour is deliberate, not default.** Owner→child inside an aggregate cascades;
+everything pointing at `Org_Employees`, `Security_Users`, `Doc_Files` or itself is `Restrict`.
+Three cases needed thought:
+- `Poll → Option → Vote` and `Poll → Vote` are two cascade paths to one table, which SQL Server
+  rejects outright — the option edge is `Restrict`.
+- `Department → Manager → Employee → Department` is a cycle; every edge is `Restrict`.
+- `Audit_Logs → User` is `Restrict` and nullable: an audit row must outlive the account it
+  describes, or cascading deletes the evidence along with the user.
+
+**Anonymity enforced by constraint, not convention.** `CK_Poll_Votes_OneVoterIdentity` requires
+exactly one of `Employee_Id` / `Voter_Hash`, so an "anonymous" vote cannot quietly carry an
+identity. The paired unique indexes are filtered — `Employee_Id IS NOT NULL` and
+`Voter_Hash IS NOT NULL` — because SQL Server treats each null as distinct and a plain unique
+index across a nullable column enforces nothing at all.
+
+**Reference data ships in the migration; demo data does not.** Roles, the permission catalogue,
+recognition categories and document categories are things the application needs to function — a
+missing permission row is an endpoint nobody can call. Sample employees and posts belong to a
+development-only runtime seeder, so production never receives them and a migration is not where
+fake people are defined.
+
+**`DeterministicGuid.From("perm:Post.Create")`** replaces a hundred hand-written GUID literals.
+The seed must be byte-identical on every build or `ef database update` refuses to run — the exact
+failure this project already hit. Deriving ids from meaningful names keeps them stable *and*
+makes cross-references between seeded rows readable.
+
+**`IUnitOfWork.Repository<T, TKey>()`** was added rather than fifty more named properties. The
+existing properties are untouched; the generic accessor caches instances per unit of work, where
+the named ones allocate a new `BaseRepository` on every access.
+
+### Seeded
+
+7 roles · 23 named permissions · 100 role grants · 6 recognition types · 6 document categories.
+Grants follow least privilege: `Employee` holds 4 permissions, `Moderator` 7, `Admin` 21,
+`SuperAdmin` all 23 — granted explicitly rather than by a bypass flag, so the permission screen
+shows the truth and every grant is auditable.
+
+### Verified against the running database
+
+Four constraints were exercised with real inserts inside a rolled-back transaction, rather than
+assumed from their definitions:
+
+| Attempt | Result |
+| ------- | ------ |
+| Recognition where sender = recipient | rejected |
+| Recognition with negative points | rejected |
+| Comment at depth 2 | accepted |
+| Comment at depth 3 | rejected |
+| First reaction on a post | accepted |
+| Second reaction by the same person | rejected |
+
+Also confirmed: no duplicate legacy `Action_Code` values between the seeded permissions and the
+template's existing rows, and `has-pending-model-changes` reports the model clean.
+
+### Build and test
+
+- Solution: **0 errors**. **114 backend tests pass** (up from 107).
+- The 7 new tests guard the seam between the `Permissions` constants and the seeded catalogue —
+  a failure that is otherwise silent, since a constant with no catalogue row produces a permission
+  nobody holds and an endpoint that refuses everyone, including administrators.
+- API starts against the new schema; login round-trips; Angular builds and its 11 tests pass.
+
+### Still outstanding
+
+`VW_UserActions` is still an empty **table**, not a view — its configuration calls `HasNoKey()`
+but never `ToView(...)`. The 100 role grants now exist in `Security_GroupPermissions`, but nothing
+flattens them, so permission checks still resolve to zero. That is Phase 4's first task, along
+with replacing the `.Result`-calling `ActionFilter`.

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Workvivo.Infrastructure.DBContext;
 
@@ -11,9 +12,11 @@ using Workvivo.Infrastructure.DBContext;
 namespace Workvivo.Infrastructure.Migrations
 {
     [DbContext(typeof(Workvivo_DbContext))]
-    partial class Workvivo_DbContextModelSnapshot : ModelSnapshot
+    [Migration("20260909192838_AddPlatformDomain")]
+    partial class AddPlatformDomain
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

@@ -6,6 +6,7 @@ namespace Workvivo.Infrastructure.Repositories;
 public class UnitOfWork : IUnitOfWork
 {
     private readonly Workvivo_DbContext _dbContext;
+    private readonly Dictionary<Type, object> _repositories = [];
     private IDbContextTransaction? _currentTransaction;
     private readonly RoleManager<UserGroup> _userGroupManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
@@ -104,6 +105,26 @@ public class UnitOfWork : IUnitOfWork
         }
     }
 
+    /// <summary>
+    /// Resolves - and caches - a repository for the requested entity.
+    ///
+    /// Cached because the named properties above construct a new BaseRepository on
+    /// every access. That is harmless for a handful of them, but a handler that touches
+    /// one entity in a loop would otherwise allocate a repository per iteration.
+    /// </summary>
+    public IBaseRepository<T, TKey> Repository<T, TKey>() where T : BaseCommonEntity<TKey>
+    {
+        var key = typeof(T);
+
+        if (!_repositories.TryGetValue(key, out var repository))
+        {
+            repository = new BaseRepository<T, TKey>(_dbContext);
+            _repositories[key] = repository;
+        }
+
+        return (IBaseRepository<T, TKey>)repository;
+    }
+
     public async Task<int> SaveChangesAsync() => await _dbContext.SaveChangesAsync();
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -183,6 +204,7 @@ public class UnitOfWork : IUnitOfWork
 
     public void Dispose()
     {
+        _repositories.Clear();
         _currentTransaction?.Dispose();
         _currentTransaction = null;
         _dbContext.Dispose();

@@ -1,4 +1,6 @@
-﻿global using Workvivo.Infrastructure.Configuration.ProceduresConfigurations;
+﻿﻿global using Workvivo.Infrastructure.Abstractions;
+global using Workvivo.Infrastructure.Seeding;
+global using Workvivo.Infrastructure.Configuration.ProceduresConfigurations;
 global using Workvivo.Infrastructure.Configuration.FunctionsConfigurations;
 global using Workvivo.Infrastructure.Configuration.ViewsConfigurations;
 global using Microsoft.AspNetCore.Identity.EntityFrameworkCore;

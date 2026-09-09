@@ -8,6 +8,15 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
   </ItemGroup>
 
+  <!--
+    The seeded permission catalogue is internal - it is not application API - but it
+    has to be verifiable. Exposing it to the test assembly keeps the encapsulation and
+    avoids tests that reflect over private fields.
+  -->
+  <ItemGroup>
+    <InternalsVisibleTo Include="Workvivo.Application.Tests" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Azure.Identity" />
     <PackageReference Include="Azure.Storage.Blobs" />

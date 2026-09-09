@@ -1,4 +1,5 @@
-﻿using Workvivo.Domain.Entities.Common;
+﻿using Workvivo.Domain.Entities.BaseEntities;
+using Workvivo.Domain.Entities.Common;
 using Workvivo.Domain.Entities.Identity;
 using Workvivo.Domain.Entities.RealTime;
 using Workvivo.Domain.Entities.Views;
@@ -32,6 +33,19 @@ public interface IUnitOfWork
     UserManager<ApplicationUser> UserManager { get; }
     RoleManager<UserGroup> UserGroupManager { get; }
     #endregion
+    /// <summary>
+    /// A repository for any entity, resolved on demand.
+    ///
+    /// The named properties above are the template's convention and are left alone,
+    /// but the platform adds roughly fifty entities and listing every one here would
+    /// turn this interface into a wall of near-identical lines that has to be edited
+    /// for each new table. The generic accessor is equivalent and does not grow.
+    ///
+    /// Instances are cached per unit of work, so repeated calls within a request share
+    /// one repository over the same change tracker.
+    /// </summary>
+    IBaseRepository<T, TKey> Repository<T, TKey>() where T : BaseCommonEntity<TKey>;
+
     Task<string> ExecuteSqlQueryAsync(string sqlQuery, params object?[] parameters);
     Task<int> SaveChangesAsync();
 

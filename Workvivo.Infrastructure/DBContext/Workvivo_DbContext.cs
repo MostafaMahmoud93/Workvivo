@@ -47,6 +47,12 @@ public class Workvivo_DbContext : IdentityDbContext<ApplicationUser, UserGroup, 
         #endregion
         // Seed the first user, Security_MasterData, and Security_UserGroups
         SeedInitialData(builder);
+
+        // Roles, the named-permission catalogue, recognition categories and document
+        // categories. Part of the schema contract, so it ships in the migration and is
+        // present in every environment. Sample employees and posts are not seeded here -
+        // those belong to a development-only runtime seeder.
+        ReferenceDataSeeder.Seed(builder);
     }
     #region Tables
     public virtual DbSet<GroupPermissions> Security_GroupPermissions { get; set; }
@@ -71,6 +77,78 @@ public class Workvivo_DbContext : IdentityDbContext<ApplicationUser, UserGroup, 
     public virtual DbSet<Lookup> Lookups { get; set; }
 
     #endregion
+
+    #region Platform tables
+
+    // Organisation
+    public virtual DbSet<Organization> Org_Organizations { get; set; }
+    public virtual DbSet<Department> Org_Departments { get; set; }
+    public virtual DbSet<Team> Org_Teams { get; set; }
+    public virtual DbSet<Location> Org_Locations { get; set; }
+    public virtual DbSet<JobTitle> Org_JobTitles { get; set; }
+    public virtual DbSet<Employee> Org_Employees { get; set; }
+    public virtual DbSet<EmployeeManager> Org_EmployeeManagers { get; set; }
+    public virtual DbSet<Skill> Org_Skills { get; set; }
+    public virtual DbSet<EmployeeSkill> Org_EmployeeSkills { get; set; }
+    public virtual DbSet<Interest> Org_Interests { get; set; }
+    public virtual DbSet<EmployeeInterest> Org_EmployeeInterests { get; set; }
+    public virtual DbSet<EmployeeFollower> Org_EmployeeFollowers { get; set; }
+
+    // Feed
+    public virtual DbSet<Post> Feed_Posts { get; set; }
+    public virtual DbSet<PostAttachment> Feed_PostAttachments { get; set; }
+    public virtual DbSet<PostAudience> Feed_PostAudiences { get; set; }
+    public virtual DbSet<PostReaction> Feed_PostReactions { get; set; }
+    public virtual DbSet<PostMention> Feed_PostMentions { get; set; }
+    public virtual DbSet<PostView> Feed_PostViews { get; set; }
+    public virtual DbSet<Comment> Feed_Comments { get; set; }
+    public virtual DbSet<CommentReaction> Feed_CommentReactions { get; set; }
+    public virtual DbSet<CommentMention> Feed_CommentMentions { get; set; }
+
+    // Communities
+    public virtual DbSet<Community> Comm_Communities { get; set; }
+    public virtual DbSet<CommunityMember> Comm_Members { get; set; }
+    public virtual DbSet<CommunityInvitation> Comm_Invitations { get; set; }
+
+    // Recognition
+    public virtual DbSet<RecognitionType> Rec_RecognitionTypes { get; set; }
+    public virtual DbSet<Recognition> Rec_Recognitions { get; set; }
+    public virtual DbSet<RecognitionLeaderboardSnapshot> Rec_LeaderboardSnapshots { get; set; }
+
+    // Polls
+    public virtual DbSet<Poll> Poll_Polls { get; set; }
+    public virtual DbSet<PollOption> Poll_Options { get; set; }
+    public virtual DbSet<PollVote> Poll_Votes { get; set; }
+    public virtual DbSet<PollAudience> Poll_Audiences { get; set; }
+
+    // Surveys
+    public virtual DbSet<Survey> Srv_Surveys { get; set; }
+    public virtual DbSet<SurveyQuestion> Srv_Questions { get; set; }
+    public virtual DbSet<SurveyQuestionOption> Srv_QuestionOptions { get; set; }
+    public virtual DbSet<SurveyResponse> Srv_Responses { get; set; }
+    public virtual DbSet<SurveyAnswer> Srv_Answers { get; set; }
+    public virtual DbSet<SurveyAudience> Srv_Audiences { get; set; }
+
+    // Events
+    public virtual DbSet<Event> Evt_Events { get; set; }
+    public virtual DbSet<EventAttendee> Evt_Attendees { get; set; }
+    public virtual DbSet<EventAudience> Evt_Audiences { get; set; }
+
+    // Documents
+    public virtual DbSet<FileAsset> Doc_Files { get; set; }
+    public virtual DbSet<DocumentCategory> Doc_Categories { get; set; }
+    public virtual DbSet<Document> Doc_Documents { get; set; }
+    public virtual DbSet<DocumentVersion> Doc_Versions { get; set; }
+    public virtual DbSet<DocumentAudience> Doc_Audiences { get; set; }
+    public virtual DbSet<DocumentDownloadLog> Doc_DownloadLogs { get; set; }
+
+    // Platform
+    public virtual DbSet<NotificationPreference> Notif_Preferences { get; set; }
+    public virtual DbSet<AuditLog> Audit_Logs { get; set; }
+    public virtual DbSet<RefreshToken> Security_RefreshTokens { get; set; }
+
+    #endregion
+
     #region Views
     public virtual DbSet<VW_UserActions> VW_UserActions { get; set; }
     #endregion
