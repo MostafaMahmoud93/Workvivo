@@ -1,0 +1,36 @@
+<Project>
+
+  <!--
+    MSBuild uses the nearest Directory.Build.props walking up from a project, so the
+    solution-wide settings have to be chained in explicitly.
+  -->
+  <Import Project="$([MSBuild]::GetPathOfFileAbove($(MSBuildThisFile), $(MSBuildThisFileDirectory)..\))" />
+
+  <PropertyGroup>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+
+    <!--
+      Every project under tests/ opts into the stricter compiler settings: this code is
+      new, so there is no legacy warning backlog to work through first.
+    -->
+    <StrictProject>true</StrictProject>
+
+    <!--
+      xunit.v3 builds a self-hosting test executable on Microsoft.Testing.Platform
+      rather than a library run by VSTest, and the .NET 10 SDK no longer supports the
+      VSTest path at all.
+    -->
+    <OutputType>Exe</OutputType>
+    <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
+    <UseVSTest>false</UseVSTest>
+
+    <!--
+      Without this, xunit.v3 generates its own console runner and `dotnet test`
+      reports "Zero tests ran" - it drives the assembly through Microsoft.Testing.
+      Platform, which the plain runner does not speak.
+    -->
+    <UseMicrosoftTestingPlatformRunner>true</UseMicrosoftTestingPlatformRunner>
+  </PropertyGroup>
+
+</Project>

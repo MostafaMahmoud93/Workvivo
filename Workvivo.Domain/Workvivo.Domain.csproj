@@ -1,0 +1,28 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Workvivo.Domain</RootNamespace>
+  </PropertyGroup>
+
+  <!--
+    Identity primitives (IdentityUser<T>, UserManager, SignInManager) and IFormFile
+    ship inside the ASP.NET Core shared framework. Referencing the framework is the
+    supported way for a class library to see them, and it replaces the legacy
+    Microsoft.AspNetCore.Identity 2.3.1 / Cryptography / DataProtection shim packages
+    the template pulled in - those are .NET Framework-era compatibility packages.
+  -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <!--
+    IBaseRepository and IUnitOfWork are written in EF Core terms (SetPropertyCalls,
+    IIncludableQueryable, DbSet), so Domain needs the EF Core abstractions. That is
+    the template's existing shape; noted in docs/ARCHITECTURE.md as debt to unwind
+    if these interfaces are ever reworded in pure-domain terms.
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+  </ItemGroup>
+
+</Project>

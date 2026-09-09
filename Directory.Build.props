@@ -1,0 +1,36 @@
+<Project>
+
+  <!--
+    Shared MSBuild settings for every C# project in the solution.
+    Per-project .csproj files carry only what is genuinely project-specific.
+  -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <AccelerateBuildsInVisualStudio>true</AccelerateBuildsInVisualStudio>
+
+    <!--
+      Deterministic output so two builds of the same commit produce identical
+      assemblies - a prerequisite for reproducible container images.
+    -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <!--
+    The template carries 433 pre-existing nullability warnings. Turning them into
+    errors solution-wide would block every build until an unrelated sweep lands,
+    so the bar is raised only on projects created from here on - they opt in with
+    <StrictProject>true</StrictProject>.
+  -->
+  <PropertyGroup Condition="'$(StrictProject)' == 'true'">
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <WarningsNotAsErrors>CS1591</WarningsNotAsErrors>
+  </PropertyGroup>
+
+</Project>

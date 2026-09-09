@@ -1,0 +1,31 @@
+.lang {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--wv-line-strong);
+  border-radius: var(--wv-radius);
+  background: var(--wv-surface-sunken);
+
+  button {
+    min-width: 2rem;
+    padding: 0.2rem 0.45rem;
+    border: 0;
+    border-radius: calc(var(--wv-radius) - 3px);
+    background: none;
+    color: var(--wv-text-muted);
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.4;
+    cursor: pointer;
+
+    &:hover {
+      color: var(--wv-text);
+    }
+
+    &.is-on {
+      background: var(--wv-surface);
+      box-shadow: var(--wv-shadow-1);
+      color: var(--wv-accent);
+    }
+  }
+}

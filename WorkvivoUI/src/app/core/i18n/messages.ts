@@ -1,0 +1,109 @@
+/**
+ * UI copy for the two languages the product ships in.
+ *
+ * `AR` is typed against `EN`, so a missing Arabic string is a build error
+ * rather than an English word left showing on an Arabic screen.
+ */
+export const EN = {
+  app: {
+    home: 'Home',
+    public: 'Public',
+    signOut: 'Sign out',
+    language: 'Language',
+    english: 'English',
+    arabic: 'العربية',
+  },
+
+  login: {
+    heading: 'Sign in',
+    lede: 'Use your Workvivo account to continue.',
+    username: 'Username',
+    password: 'Password',
+    usernameRequired: 'Username is required.',
+    passwordRequired: 'Password is required.',
+    submit: 'Sign in',
+    submitting: 'Signing in...',
+    away: 'Back to the public page',
+    failed: 'Sign in failed.',
+    unreachable: 'Could not reach Workvivo.API. Is it running?',
+  },
+
+  publicPage: {
+    eyebrow: 'Public page - no sign in required',
+    heading: 'Workvivo',
+    lede: 'This page is open to anyone; everything behind it needs an account. Placeholder copy - replace it with your own.',
+    cta: 'Sign in to Workvivo',
+    signIn: 'Sign in',
+    points: [
+      { title: 'Sign in built in', body: 'Credentials go to Workvivo.API; the home page sits behind a guard.' },
+      { title: 'English and Arabic', body: 'Every string is translated and the layout mirrors for right-to-left.' },
+      { title: 'Yours to extend', body: 'Add a feature folder and a route - the shell and guards already work.' },
+    ],
+  },
+
+  homePage: {
+    heading: 'Home',
+    lede: 'You are signed in. This page is behind the auth guard.',
+    userId: 'User id',
+    userType: 'User type',
+    administrator: 'Administrator',
+    tokenExpires: 'Token expires',
+    permittedActions: 'Permitted actions',
+    yes: 'Yes',
+    no: 'No',
+    noSession: 'No session loaded.',
+  },
+};
+
+export type Messages = typeof EN;
+
+export const AR: Messages = {
+  app: {
+    home: 'الرئيسية',
+    public: 'الصفحة العامة',
+    signOut: 'تسجيل الخروج',
+    language: 'اللغة',
+    english: 'English',
+    arabic: 'العربية',
+  },
+
+  login: {
+    heading: 'تسجيل الدخول',
+    lede: 'استخدم حسابك في Workvivo للمتابعة.',
+    username: 'اسم المستخدم',
+    password: 'كلمة المرور',
+    usernameRequired: 'اسم المستخدم مطلوب.',
+    passwordRequired: 'كلمة المرور مطلوبة.',
+    submit: 'تسجيل الدخول',
+    submitting: 'جارٍ تسجيل الدخول...',
+    away: 'العودة إلى الصفحة العامة',
+    failed: 'تعذّر تسجيل الدخول.',
+    unreachable: 'تعذّر الوصول إلى Workvivo.API. هل الخدمة قيد التشغيل؟',
+  },
+
+  publicPage: {
+    eyebrow: 'صفحة عامة - لا تتطلب تسجيل الدخول',
+    heading: 'Workvivo',
+    lede: 'هذه الصفحة متاحة للجميع، أما ما خلفها فيتطلب حسابًا. هذا نص مؤقت، استبدله بنصك.',
+    cta: 'تسجيل الدخول إلى Workvivo',
+    signIn: 'تسجيل الدخول',
+    points: [
+      { title: 'تسجيل الدخول جاهز', body: 'تُرسل البيانات إلى Workvivo.API، والصفحة الرئيسية محمية بحارس المصادقة.' },
+      { title: 'الإنجليزية والعربية', body: 'كل النصوص مترجمة والتخطيط ينعكس للكتابة من اليمين إلى اليسار.' },
+      { title: 'قابل للتوسيع', body: 'أضف مجلد ميزة ومسارًا، فالهيكل وحُرّاس المصادقة يعملان بالفعل.' },
+    ],
+  },
+
+  homePage: {
+    heading: 'الرئيسية',
+    lede: 'لقد سجّلت الدخول. هذه الصفحة محمية بحارس المصادقة.',
+    userId: 'معرّف المستخدم',
+    userType: 'نوع المستخدم',
+    administrator: 'مسؤول النظام',
+    tokenExpires: 'انتهاء صلاحية الرمز',
+    permittedActions: 'الإجراءات المسموح بها',
+    yes: 'نعم',
+    no: 'لا',
+    noSession: 'لا توجد جلسة محمّلة.',
+  },
+};

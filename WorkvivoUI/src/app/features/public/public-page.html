@@ -1,0 +1,27 @@
+<header class="pub__bar">
+  <app-brand-mark />
+  <div class="pub__barActions">
+    <app-language-toggle />
+    <a class="wv-btn wv-btn--primary wv-btn--sm" routerLink="/login">
+      {{ text().publicPage.signIn }}
+    </a>
+  </div>
+</header>
+
+<main class="pub">
+  <section class="pub__hero">
+    <p class="pub__eyebrow">{{ text().publicPage.eyebrow }}</p>
+    <h1>{{ text().publicPage.heading }}</h1>
+    <p class="pub__lede">{{ text().publicPage.lede }}</p>
+    <a class="wv-btn wv-btn--primary" routerLink="/login">{{ text().publicPage.cta }}</a>
+  </section>
+
+  <section class="pub__points">
+    @for (point of text().publicPage.points; track point.title) {
+      <article>
+        <h2>{{ point.title }}</h2>
+        <p>{{ point.body }}</p>
+      </article>
+    }
+  </section>
+</main>

@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>Workvivo.Application</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" />
+    <PackageReference Include="ClosedXML" />
+    <PackageReference Include="FluentValidation" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" />
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="Newtonsoft.Json" />
+    <!--
+      Legacy EWS mail path in MailService. Unmaintained and .NET Framework-era;
+      scheduled for replacement by MailKit once the EWS branch is retired.
+    -->
+    <PackageReference Include="Microsoft.Exchange.WebServices" NoWarn="NU1701" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Workvivo.Infrastructure\Workvivo.Infrastructure.csproj" />
+    <ProjectReference Include="..\Workvivo.Resources\Workvivo.Resources.csproj" />
+  </ItemGroup>
+
+</Project>

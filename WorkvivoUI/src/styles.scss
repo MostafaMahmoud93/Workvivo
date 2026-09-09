@@ -1,0 +1,205 @@
+/* Workvivo UI - global tokens and primitives. */
+
+@use './styles/document-sheet';
+
+:root {
+  color-scheme: light;
+
+  /* Surfaces */
+  --wv-bg: #eef1f5;
+  --wv-surface: #ffffff;
+  --wv-surface-sunken: #f7f8fa;
+  --wv-line: #e0e4ea;
+  --wv-line-strong: #c8d0da;
+  --wv-hover: #eceff4;
+
+  /* Ink */
+  --wv-text: #14202e;
+  --wv-text-muted: #5a6775;
+  --wv-text-faint: #8a95a1;
+
+  /* Brand */
+  --wv-accent: #1f4e79;
+  --wv-accent-hover: #183d60;
+  --wv-accent-soft: #e8eef5;
+  --wv-accent-on: #ffffff;
+
+  /* Signals */
+  --wv-danger: #a3231f;
+  --wv-danger-bg: #fdecec;
+  --wv-warn: #8a5a05;
+  --wv-focus: #2f7bc4;
+
+  /* Elevation and shape */
+  --wv-shadow-1: 0 1px 2px rgb(16 32 44 / 7%);
+  --wv-shadow-2: 0 6px 18px rgb(16 32 44 / 10%);
+  --wv-shadow-3: 0 18px 44px rgb(16 32 44 / 18%);
+  --wv-radius-sm: 0.35rem;
+  --wv-radius: 0.55rem;
+  --wv-radius-lg: 0.85rem;
+
+  /*
+   * Interface font. The Arabic families come first for the Arabic UI so the
+   * chrome is set in a face designed for the script rather than in whatever
+   * the Latin font falls back to.
+   */
+  --wv-font: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --wv-font-ar: 'Segoe UI', 'Noto Sans Arabic', 'Dubai', Tahoma, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--wv-bg);
+  color: var(--wv-text);
+  font-family: var(--wv-font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html[dir='rtl'] body {
+  font-family: var(--wv-font-ar);
+  /* Arabic glyphs are taller; a touch more leading keeps the chrome even. */
+  line-height: 1.65;
+}
+
+:focus-visible {
+  outline: 2px solid var(--wv-focus);
+  outline-offset: 2px;
+}
+
+/*
+ * Icons that describe a direction (undo, indent, list markers) have to mirror
+ * with the interface; icons that describe a physical edge (align left/right)
+ * must not, because those still mean left and right in an Arabic document.
+ */
+html[dir='rtl'] app-icon.ico--flip svg {
+  transform: scaleX(-1);
+}
+
+/* Buttons */
+.wv-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.95rem;
+  border: 1px solid transparent;
+  border-radius: var(--wv-radius);
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+}
+
+.wv-btn--primary {
+  background: var(--wv-accent);
+  color: var(--wv-accent-on);
+  box-shadow: var(--wv-shadow-1);
+
+  &:hover:not(:disabled) {
+    background: var(--wv-accent-hover);
+  }
+}
+
+.wv-btn--quiet {
+  border-color: var(--wv-line-strong);
+  background: var(--wv-surface);
+  color: var(--wv-text);
+
+  &:hover:not(:disabled) {
+    background: var(--wv-hover);
+  }
+}
+
+.wv-btn--sm {
+  padding: 0.38rem 0.7rem;
+  font-size: 0.82rem;
+}
+
+/* Form fields */
+.wv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.wv-field__label {
+  color: var(--wv-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.wv-field input,
+.wv-field select {
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--wv-line-strong);
+  border-radius: var(--wv-radius);
+  background: var(--wv-surface);
+  color: var(--wv-text);
+  font: inherit;
+  transition:
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+
+  &:focus {
+    border-color: var(--wv-focus);
+    box-shadow: 0 0 0 3px rgb(47 123 196 / 18%);
+    outline: none;
+  }
+}
+
+.wv-field__hint {
+  color: var(--wv-danger);
+  font-size: 0.78rem;
+}
+
+/* Printing: only the sheet survives, and it prints without its screen chrome. */
+@media print {
+  body {
+    background: #fff;
+  }
+
+  .wv-print-hide {
+    display: none !important;
+  }
+
+  .ed__canvas {
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+
+  .ed__sheetWrap {
+    zoom: 1 !important;
+  }
+
+  .ed__sheet {
+    width: auto !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+  }
+}

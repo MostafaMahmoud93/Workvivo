@@ -1,0 +1,46 @@
+<div class="login">
+  <form class="login__card" [formGroup]="form" (ngSubmit)="submit()" novalidate>
+    <div class="login__top">
+      <app-brand-mark size="lg" />
+      <app-language-toggle />
+    </div>
+
+    <div class="login__intro">
+      <h1>{{ text().login.heading }}</h1>
+      <p>{{ text().login.lede }}</p>
+    </div>
+
+    <label class="wv-field">
+      <span class="wv-field__label">{{ text().login.username }}</span>
+      <input
+        type="text"
+        dir="ltr"
+        formControlName="userName"
+        autocomplete="username"
+        autocapitalize="none"
+        spellcheck="false"
+      />
+      @if (form.controls.userName.touched && form.controls.userName.invalid) {
+        <span class="wv-field__hint">{{ text().login.usernameRequired }}</span>
+      }
+    </label>
+
+    <label class="wv-field">
+      <span class="wv-field__label">{{ text().login.password }}</span>
+      <input type="password" dir="ltr" formControlName="password" autocomplete="current-password" />
+      @if (form.controls.password.touched && form.controls.password.invalid) {
+        <span class="wv-field__hint">{{ text().login.passwordRequired }}</span>
+      }
+    </label>
+
+    @if (error(); as message) {
+      <p class="login__error" role="alert" dir="auto">{{ message }}</p>
+    }
+
+    <button type="submit" class="wv-btn wv-btn--primary" [disabled]="busy()">
+      {{ busy() ? text().login.submitting : text().login.submit }}
+    </button>
+
+    <a class="login__away" routerLink="/public">{{ text().login.away }}</a>
+  </form>
+</div>

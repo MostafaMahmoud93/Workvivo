@@ -1,0 +1,40 @@
+.mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.mark__glyph {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.55rem;
+  background: var(--wv-accent);
+  color: var(--wv-accent-on);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.mark__word {
+  font-size: 1rem;
+  color: var(--wv-text);
+}
+
+.mark--lg {
+  gap: 0.8rem;
+
+  .mark__glyph {
+    width: 2.9rem;
+    height: 2.9rem;
+    border-radius: 0.8rem;
+    font-size: 1.1rem;
+  }
+
+  .mark__word {
+    font-size: 1.45rem;
+  }
+}

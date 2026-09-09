@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "workvivo-ui",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start", "--prefix", "WorkvivoUI"],
+      "port": 4200
+    }
+  ]
+}

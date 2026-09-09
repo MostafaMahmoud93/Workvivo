@@ -1,0 +1,33 @@
+<section class="home">
+  <header class="home__head">
+    <h1>{{ text().homePage.heading }}</h1>
+    <p>{{ text().homePage.lede }}</p>
+  </header>
+
+  @if (session(); as current) {
+    <dl class="home__facts">
+      <div>
+        <dt>{{ text().homePage.userId }}</dt>
+        <dd dir="auto">{{ current.userId ?? '-' }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().homePage.userType }}</dt>
+        <dd dir="auto">{{ current.userType ?? '-' }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().homePage.administrator }}</dt>
+        <dd>{{ isAdmin() ? text().homePage.yes : text().homePage.no }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().homePage.tokenExpires }}</dt>
+        <dd>{{ expiresAtLabel() }}</dd>
+      </div>
+      <div>
+        <dt>{{ text().homePage.permittedActions }}</dt>
+        <dd>{{ actionCount() }}</dd>
+      </div>
+    </dl>
+  } @else {
+    <p class="home__empty">{{ text().homePage.noSession }}</p>
+  }
+</section>

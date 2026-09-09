@@ -1,0 +1,52 @@
+.home {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+
+.home__head {
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.5rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--wv-text-muted);
+  }
+}
+
+.home__facts {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid var(--wv-line);
+  border-radius: 0.75rem;
+  background: var(--wv-line);
+
+  > div {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    padding: 0.85rem 1.1rem;
+    background: var(--wv-surface);
+  }
+
+  dt {
+    min-width: 10rem;
+    color: var(--wv-text-muted);
+    font-size: 0.85rem;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+  }
+}
+
+.home__empty {
+  color: var(--wv-text-muted);
+}

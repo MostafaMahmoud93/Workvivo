@@ -1,0 +1,51 @@
+﻿using Workvivo.Domain.Entities.BaseEntities;
+
+namespace Workvivo.Domain.Abstractions.Interfaces;
+public interface IBaseRepository<T, U> where T : BaseCommonEntity<U>
+{
+    Task<(List<T> collection, int length)> GetPagedAndSortedWithPivotAsync<T, TRelated>(int page = 1, int pageSize = 10, Expression<Func<T, bool>> predicate = null, string? sortBy = null, bool sortAsc = true, string? filter = null, Expression<Func<T, IEnumerable<TRelated>>> relatedSelector = null, Expression<Func<TRelated, object>> pivotSelector = null, Expression<Func<TRelated, bool>> pivotCondition = null) where T : class where TRelated : class;
+    Task<(List<T> collection, int length)> GetPagedAndSortedWithGeneralFilterAndIncludeAsync(int page = 1, int pageSize = 10, Expression<Func<T, bool>> predicate = null, string? filter = null, string? sortBy = null, bool sortAsc = true, params Expression<Func<T, object>>[] includes);
+    Task<(List<T> collection, int length)> GetPagedAndSortedWithFilterAndIncludeAsync(int page = 1, int pageSize = 10, Expression<Func<T, bool>> predicate = null, string? sortBy = null, bool sortAsc = true, params Expression<Func<T, object>>[] includes);
+    Task<TStatistics> GetStatisticsAsync<TStatistics>(Expression<Func<T, bool>>? filter = null, List<(string propertyName, Expression<Func<T, bool>> condition)>? conditions = null) where TStatistics : class, new();
+    Task<List<T>> GetAllOrderingDescWithIncludesAsync<Tkey>(Expression<Func<T, Tkey>> predicateSort, Expression<Func<T, bool>> predicateFilter = null, params Expression<Func<T, object>>[] includes);
+    Task<(List<T> collection, int length)> GetPagedAndSortedWithFilterAsync(int page = 1, int pageSize = 10, Expression<Func<T, bool>> predicate = null, string? sortBy = null, bool sortAsc = true);
+    Task<T> FirstOrDefaultOrderingWithIncludesAsync<Tkey>(Expression<Func<T, Tkey>> predicateSort, Expression<Func<T, bool>> predicateFilter, params Expression<Func<T, object>>[] includes);
+    Task<List<Tkey>> GetAllWithSelectAsync<Tkey>(Expression<Func<T, bool>> predicate, Expression<Func<T, Tkey>> keySelector, params Expression<Func<T, object>>[] includes);
+    IEnumerable<TResult> GetAllGroupBy<TKey, TResult>(Func<T, TKey> keySelector, Expression<Func<T, bool>> predicate, Func<IGrouping<TKey, T>, TResult> resultSelector);
+    Task<List<T>> GetAllOrderingDescAsync<Tkey>(Expression<Func<T, Tkey>> predicateSort, Expression<Func<T, bool>> predicateFilter = null);
+    Task<List<T>> GetAllWithIncludesAsync(Expression<Func<T, bool>> predicateFilter = null, params Expression<Func<T, object>>[] includes);
+    Task<int> ExecuteUpdateAsync(Expression<Func<T, bool>> predicate, Action<UpdateSettersBuilder<T>> setters, CancellationToken cancellationToken = default);
+    Task<List<T>> GetAllOrderingAscAsync<Tkey>(Expression<Func<T, Tkey>> predicateSort, Expression<Func<T, bool>> predicateFilter = null);
+    Task<T> FirstOrDefaultWithIncludesAsync(Expression<Func<T, bool>> predicateFilter, params Expression<Func<T, object>>[] includes);
+    Task<TValue> SelectFirstPropertyValue<TValue, TKey>(Expression<Func<T, bool>> predicate, Expression<Func<T, TKey>> keySelector);
+    Task<T> FirstOrDefaultOrderingAsync<Tkey>(Expression<Func<T, Tkey>> predicateSort, Expression<Func<T, bool>> predicateFilter);
+    Task<List<Tkey>> GetAllWithSelectAsync<Tkey>(Expression<Func<T, bool>> predicate, Expression<Func<T, Tkey>> keySelector);
+    IEnumerable<IGrouping<TKey, T>> GetAllGroupBy<TKey>(Func<T, TKey> keySelector, Expression<Func<T, bool>> predicate);
+    Task<List<T>> GetAllWhereAsync<T>(Expression<Func<T, bool>> predicate, bool withTracking = true) where T : class;
+    Task<TValue> SelectFirstPropertyValue<TValue>(Expression<Func<T, bool>> predicate, string propertyName);
+    Task<List<T>> GetAllPaginationAsync(Expression<Func<T, bool>> predicate, int pageNumber, int pageSize);
+    decimal Sum(Expression<Func<T, decimal>> result, Expression<Func<T, bool>> filter);
+    int Sum(Expression<Func<T, int>> result, Expression<Func<T, bool>> filter);
+    R Max<R>(Expression<Func<T, R>> result, Expression<Func<T, bool>> filter);
+    Task<int> GetSerialNoWithFilterAsync(Expression<Func<T, bool>> predicate);
+    Task<T> FindByIDAsync(Expression<Func<T, bool>> predicate = null);
+    Task<T> FirstOrDefaultAsync(Expression<Func<T, bool>> predicate);
+    Task<List<T>> GetAllAsync(Expression<Func<T, bool>> predicate);
+    Task<int> GetSerialNoAsync(Expression<Func<T, int>> result);
+    void DeleteRange(Expression<Func<T, bool>> predicate);
+    Task<List<T>> GetAllAsync(bool withTracking = true);
+    Task Delete(Expression<Func<T, bool>> predicate);
+    bool HasPopulatedCollectionsUsed(T entity);
+    Task<List<T>> GetAllAsNoTrackingAsync();
+    Task AddRangeAsync(List<T> entity);
+    bool Any(Func<T, bool> predicate);
+    void DeleteByEntity(T entity);
+    Task<int> GetSerialNoAsync();
+    Task<List<T>> GetAllAsync();
+    Task<T> FindByIDAsync(U Id);
+    void SoftDeleteById(U Id);
+    void DeleteById(int Id);
+    Task AddAsync(T entity);
+    IQueryable<T> GetAllQ();
+    void Edit(T entity);
+}

@@ -1,0 +1,22 @@
+<header class="shell__bar wv-print-hide">
+  <a class="shell__brand" routerLink="/home"><app-brand-mark /></a>
+
+  <nav class="shell__nav">
+    <a routerLink="/home" routerLinkActive="is-active">{{ text().app.home }}</a>
+    <a routerLink="/public" routerLinkActive="is-active">{{ text().app.public }}</a>
+  </nav>
+
+  <div class="shell__account">
+    <app-language-toggle />
+    @if (session(); as current) {
+      <span class="shell__who">{{ current.userType ?? '-' }}</span>
+    }
+    <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="signOut()">
+      {{ text().app.signOut }}
+    </button>
+  </div>
+</header>
+
+<main class="shell__body">
+  <router-outlet />
+</main>
