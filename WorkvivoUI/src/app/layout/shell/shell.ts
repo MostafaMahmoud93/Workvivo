@@ -5,11 +5,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { LocaleService } from '../../core/services/locale.service';
 import { BrandMark } from '../../shared/components/brand-mark/brand-mark';
 import { LanguageToggle } from '../../shared/components/language-toggle/language-toggle';
+import { HasPermissionDirective } from '../../shared/directives/has-permission.directive';
 
 @Component({
   selector: 'app-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, BrandMark, LanguageToggle],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, BrandMark, LanguageToggle, HasPermissionDirective],
   templateUrl: './shell.html',
   styleUrl: './shell.scss',
 })

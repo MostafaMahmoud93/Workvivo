@@ -1,0 +1,167 @@
+<section class="feed">
+  <div class="feed__composer" *appHasPermission="'Post.Create'">
+    <textarea
+      rows="2"
+      dir="auto"
+      [ngModel]="composerText()"
+      (ngModelChange)="composerText.set($event)"
+      [placeholder]="text().feed.composerPlaceholder"
+      [attr.aria-label]="text().feed.composerPlaceholder"
+    ></textarea>
+    <div class="feed__composerActions">
+      <button
+        type="button"
+        class="wv-btn wv-btn--primary wv-btn--sm"
+        [disabled]="posting() || !composerText().trim()"
+        (click)="publish()"
+      >
+        {{ posting() ? text().feed.posting : text().feed.post }}
+      </button>
+    </div>
+  </div>
+
+  @if (loading()) {
+    @for (item of skeletons; track $index) {
+      <article class="card card--skeleton">
+        <span class="sk sk--avatar"></span>
+        <span class="sk sk--line"></span>
+        <span class="sk sk--line sk--short"></span>
+      </article>
+    }
+  } @else if (failed()) {
+    <p class="feed__state feed__state--error">{{ text().feed.loadFailed }}</p>
+  } @else if (isEmpty()) {
+    <p class="feed__state">{{ text().feed.empty }}</p>
+  } @else {
+    @for (post of posts(); track post.id) {
+      <article class="card" [class.card--official]="post.isOfficial">
+        <header class="card__head">
+          <app-avatar [name]="post.author.displayName" [size]="40" />
+          <div class="card__who">
+            <span class="card__author" dir="auto">{{ post.author.displayName }}</span>
+            <span class="card__meta" dir="auto">
+              {{ post.author.jobTitle ?? '' }}
+              <span aria-hidden="true"> · </span>{{ when(post.publishedDate) }}
+            </span>
+          </div>
+          @if (post.isOfficial) {
+            <span class="card__badge">{{ text().feed.official }}</span>
+          }
+          @if (post.isPinned) {
+            <span class="card__badge card__badge--pin">{{ text().feed.pinned }}</span>
+          }
+        </header>
+
+        @if (post.title) {
+          <h2 class="card__title" dir="auto">{{ post.title }}</h2>
+        }
+
+        <div class="card__body" dir="auto" [innerHTML]="trustedHtml(post.contentHtml)"></div>
+
+        @if (post.reactionsCount > 0 || post.commentsCount > 0) {
+          <div class="card__tally">
+            @if (post.reactionsCount > 0) {
+              <span>{{ post.reactionsCount }} {{ text().feed.reactions }}</span>
+            }
+            @if (post.commentsCount > 0) {
+              <span>{{ post.commentsCount }} {{ text().feed.comments }}</span>
+            }
+          </div>
+        }
+
+        <footer class="card__actions">
+          <div class="card__reactions" role="group" [attr.aria-label]="text().feed.reactions">
+            @for (reaction of reactionTypes; track reaction) {
+              <button
+                type="button"
+                class="react"
+                [class.react--mine]="post.myReaction === reaction"
+                [attr.aria-pressed]="post.myReaction === reaction"
+                [title]="reaction"
+                (click)="react(post, reaction)"
+              >
+                <span aria-hidden="true">{{ glyphs[reaction] }}</span>
+                @if (reactionCount(post, reaction) > 0) {
+                  <span class="react__count">{{ reactionCount(post, reaction) }}</span>
+                }
+              </button>
+            }
+          </div>
+
+          @if (post.commentsEnabled) {
+            <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="toggleThread(post)">
+              {{ openThread() === post.id ? text().feed.hideComments : text().feed.showComments }}
+            </button>
+          }
+        </footer>
+
+        @if (openThread() === post.id) {
+          <div class="thread">
+            @if (commentsLoading()) {
+              <p class="thread__loading">{{ text().feed.loadingComments }}</p>
+            } @else {
+              @for (comment of comments(); track comment.id) {
+                <div class="thread__item" [style.margin-inline-start.rem]="comment.depth * 1.75">
+                  <app-avatar [name]="comment.author.displayName" [size]="28" />
+                  <div class="thread__bubble">
+                    <span class="thread__author" dir="auto">
+                      {{ comment.author.displayName }}
+                      <span class="thread__when">{{ when(comment.createdDate) }}</span>
+                    </span>
+                    <div dir="auto" [innerHTML]="trustedHtml(comment.contentHtml)"></div>
+                    @if (comment.canReply) {
+                      <button type="button" class="thread__reply" (click)="startReply(comment)">
+                        {{ text().feed.reply }}
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+
+              <div class="thread__compose">
+                @if (replyingTo()) {
+                  <span class="thread__replyingTo">
+                    {{ text().feed.replyingToThread }}
+                    <button type="button" class="thread__cancel" (click)="cancelReply()">
+                      {{ text().feed.cancel }}
+                    </button>
+                  </span>
+                }
+                <div class="thread__composeRow">
+                  <input
+                    type="text"
+                    dir="auto"
+                    [ngModel]="replyText()"
+                    (ngModelChange)="replyText.set($event)"
+                    (keyup.enter)="submitComment(post)"
+                    [placeholder]="text().feed.commentPlaceholder"
+                    [attr.aria-label]="text().feed.commentPlaceholder"
+                  />
+                  <button
+                    type="button"
+                    class="wv-btn wv-btn--primary wv-btn--sm"
+                    [disabled]="!replyText().trim()"
+                    (click)="submitComment(post)"
+                  >
+                    {{ text().feed.send }}
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </article>
+    }
+
+    @if (hasMore()) {
+      <button
+        type="button"
+        class="wv-btn wv-btn--quiet feed__more"
+        [disabled]="loadingMore()"
+        (click)="loadMore()"
+      >
+        {{ loadingMore() ? text().feed.loadingMore : text().feed.loadMore }}
+      </button>
+    }
+  }
+</section>

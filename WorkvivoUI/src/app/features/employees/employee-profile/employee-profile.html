@@ -1,0 +1,157 @@
+@if (loading()) {
+  <section class="prof prof--loading" aria-busy="true">
+    <span class="sk sk--cover"></span>
+    <span class="sk sk--avatar"></span>
+    <span class="sk sk--line"></span>
+    <span class="sk sk--line sk--short"></span>
+  </section>
+} @else if (failed() || !profile()) {
+  <section class="prof">
+    <p class="prof__state prof__state--error">{{ text().profile.loadFailed }}</p>
+  </section>
+} @else if (profile(); as person) {
+  <section class="prof">
+    <header class="prof__hero">
+      <div class="prof__cover" aria-hidden="true"></div>
+
+      <div class="prof__identity">
+        <app-avatar [name]="person.displayName" [size]="88" />
+
+        <div class="prof__names">
+          <h1 dir="auto">{{ person.displayName }}</h1>
+          @if (person.fullNameAr && person.fullNameAr !== person.displayName) {
+            <p class="prof__altName" dir="rtl" lang="ar">{{ person.fullNameAr }}</p>
+          }
+          <p class="prof__role" dir="auto">
+            {{ person.jobTitleName ?? '—' }}
+            @if (person.departmentName) {
+              <span aria-hidden="true"> · </span>{{ person.departmentName }}
+            }
+          </p>
+        </div>
+
+        <div class="prof__actions">
+          @if (!person.isMe) {
+            <button
+              type="button"
+              class="wv-btn"
+              [class.wv-btn--primary]="!person.isFollowedByMe"
+              [class.wv-btn--quiet]="person.isFollowedByMe"
+              [disabled]="followBusy()"
+              (click)="toggleFollow()"
+            >
+              {{ person.isFollowedByMe ? text().profile.following : text().profile.follow }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <dl class="prof__stats">
+        <div>
+          <dt>{{ text().profile.followers }}</dt>
+          <dd>{{ person.followersCount }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().profile.followingCount }}</dt>
+          <dd>{{ person.followingCount }}</dd>
+        </div>
+        <div>
+          <dt>{{ text().profile.points }}</dt>
+          <dd>{{ person.recognitionPoints }}</dd>
+        </div>
+      </dl>
+    </header>
+
+    <div class="prof__body">
+      <article class="prof__panel">
+        <h2>{{ text().profile.about }}</h2>
+        @if (person.biography) {
+          <p dir="auto">{{ person.biography }}</p>
+        } @else {
+          <p class="prof__muted">{{ text().profile.noBio }}</p>
+        }
+
+        <dl class="prof__facts">
+          <div>
+            <dt>{{ text().profile.employeeNumber }}</dt>
+            <dd dir="auto">{{ person.employeeNumber }}</dd>
+          </div>
+          <div>
+            <dt>{{ text().profile.email }}</dt>
+            <dd dir="auto">{{ person.email ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ text().profile.mobile }}</dt>
+            <dd dir="auto">{{ person.mobile ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ text().profile.office }}</dt>
+            <dd dir="auto">{{ person.locationName ?? '—' }}</dd>
+          </div>
+          <div>
+            <dt>{{ text().profile.team }}</dt>
+            <dd dir="auto">{{ person.teamName ?? '—' }}</dd>
+          </div>
+          @if (joinedLabel()) {
+            <div>
+              <dt>{{ text().profile.joined }}</dt>
+              <dd>{{ joinedLabel() }}</dd>
+            </div>
+          }
+          @if (birthdayLabel()) {
+            <div>
+              <dt>{{ text().profile.birthday }}</dt>
+              <dd>{{ birthdayLabel() }}</dd>
+            </div>
+          }
+        </dl>
+      </article>
+
+      <aside class="prof__side">
+        @if (person.manager) {
+          <article class="prof__panel">
+            <h2>{{ text().profile.reportsTo }}</h2>
+            <a class="prof__person" [routerLink]="['/employees', person.manager.id]">
+              <app-avatar [name]="person.manager.displayName" [size]="36" />
+              <span>
+                <span class="prof__personName" dir="auto">{{ person.manager.displayName }}</span>
+                <span class="prof__personRole" dir="auto">{{ person.manager.jobTitle ?? '—' }}</span>
+              </span>
+            </a>
+          </article>
+        }
+
+        @if (person.directReports.length) {
+          <article class="prof__panel">
+            <h2>{{ text().profile.directReports }} ({{ person.directReports.length }})</h2>
+            @for (report of person.directReports; track report.id) {
+              <a class="prof__person" [routerLink]="['/employees', report.id]">
+                <app-avatar [name]="report.displayName" [size]="36" />
+                <span>
+                  <span class="prof__personName" dir="auto">{{ report.displayName }}</span>
+                  <span class="prof__personRole" dir="auto">{{ report.jobTitle ?? '—' }}</span>
+                </span>
+              </a>
+            }
+          </article>
+        }
+
+        @if (person.skills.length) {
+          <article class="prof__panel">
+            <h2>{{ text().profile.skills }}</h2>
+            <ul class="prof__tags">
+              @for (skill of person.skills; track skill.id) {
+                <li class="prof__tag" dir="auto">
+                  {{ skill.name }}
+                  @if (skill.endorsementCount > 0) {
+                    <span class="prof__tagCount">{{ skill.endorsementCount }}</span>
+                  }
+                </li>
+              }
+            </ul>
+          </article>
+        }
+      </aside>
+    </div>
+  </section>
+}

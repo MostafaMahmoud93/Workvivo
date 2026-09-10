@@ -1,5 +1,8 @@
 ﻿using Workvivo.Application.Features.Auth.Services;
 using Workvivo.Infrastructure.Identity;
+using Workvivo.Application.Features.Posts.Common;
+using Workvivo.Infrastructure.Feed;
+using Workvivo.Infrastructure.Seeding;
 
 namespace Workvivo.API.Extensions;
 public static class ConfigureServiceType
@@ -23,6 +26,11 @@ public static class ConfigureServiceType
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IRefreshTokenService, RefreshTokenService>();
         services.AddScoped<IAuthSessionFactory, AuthSessionFactory>();
+        services.AddScoped<DevelopmentDataSeeder>();
+
+        // Feed (phase 6).
+        services.AddScoped<IAudienceResolver, AudienceResolver>();
+        services.AddScoped<PostAuthorization>();
 
         // A policy provider rather than a policy per permission: permissions are rows
         // in a table, so the set is not known at start-up.

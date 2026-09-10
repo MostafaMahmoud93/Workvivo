@@ -6,6 +6,7 @@ using Workvivo.API.Options;
 using Workvivo.Application;
 using Workvivo.Application.Features.Auth;
 using Workvivo.Infrastructure.Identity;
+using Workvivo.Infrastructure.Seeding;
 using Workvivo.Infrastructure;
 
 // A bootstrap logger, so a failure during configuration (a missing connection string,
@@ -94,10 +95,11 @@ try
 
     #region Pipeline
 
-    // Correlation id, then the exception handler, then security headers - see
-    // MiddlewareExtensions for why that order.
+    // Correlation id and security headers, then request logging, then the exception
+    // handler innermost - see MiddlewareExtensions for why that order.
     app.UseWorkvivoDiagnostics();
     app.UseWorkvivoRequestLogging();
+    app.UseWorkvivoExceptionHandling();
 
     if (app.Environment.IsDevelopment())
     {
@@ -134,6 +136,16 @@ try
     app.MapHealthChecks("/health/ready");
 
     #endregion
+
+    // Sample staff for local work. The seeder refuses to run outside Development, so
+    // this call is safe to leave unconditional - but it is guarded here as well, since
+    // two independent checks is the right number for something that creates accounts
+    // with a shared, well-known password.
+    if (app.Environment.IsDevelopment())
+    {
+        using var scope = app.Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<DevelopmentDataSeeder>().SeedAsync();
+    }
 
     Log.Information(
         "Workvivo.API starting in {Environment}",

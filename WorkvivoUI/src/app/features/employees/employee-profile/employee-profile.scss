@@ -1,0 +1,233 @@
+:host {
+  display: block;
+  padding: 1.5rem;
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.prof__hero {
+  border: 1px solid var(--wv-line);
+  border-radius: var(--wv-radius-lg);
+  background: var(--wv-surface);
+  box-shadow: var(--wv-shadow-1);
+  overflow: hidden;
+}
+
+.prof__cover {
+  height: 96px;
+  background: linear-gradient(120deg, var(--wv-accent), var(--wv-accent-hover));
+}
+
+.prof__identity {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  padding: 0 1.25rem 1rem;
+}
+
+/*
+ * Only the avatar straddles the cover. Lifting the whole row would drag the name up
+ * onto the dark band with it, leaving dark text on a dark background.
+ */
+.prof__identity app-avatar {
+  margin-top: -34px;
+}
+
+.prof__identity app-avatar span {
+  border: 3px solid var(--wv-surface);
+}
+
+.prof__names {
+  flex: 1;
+  min-width: 0;
+  padding-bottom: 0.2rem;
+
+  h1 {
+    margin: 0;
+    font-size: 1.3rem;
+  }
+}
+
+.prof__altName {
+  margin: 0.1rem 0 0;
+  color: var(--wv-text-muted);
+  font-size: 0.95rem;
+}
+
+.prof__role {
+  margin: 0.2rem 0 0;
+  color: var(--wv-text-muted);
+  font-size: 0.9rem;
+}
+
+.prof__actions {
+  padding-bottom: 0.3rem;
+}
+
+.prof__stats {
+  display: flex;
+  gap: 2rem;
+  margin: 0;
+  padding: 0.85rem 1.25rem;
+  border-top: 1px solid var(--wv-line);
+  background: var(--wv-surface-sunken);
+
+  div { display: flex; flex-direction: column; }
+
+  dt {
+    color: var(--wv-text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  dd {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.prof__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.prof__panel {
+  padding: 1.1rem 1.25rem;
+  border: 1px solid var(--wv-line);
+  border-radius: var(--wv-radius-lg);
+  background: var(--wv-surface);
+  box-shadow: var(--wv-shadow-1);
+
+  & + & { margin-top: 1rem; }
+
+  h2 {
+    margin: 0 0 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--wv-text-muted);
+  }
+
+  p { margin: 0 0 0.9rem; }
+}
+
+.prof__muted { color: var(--wv-text-faint); }
+
+.prof__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.8rem 1.2rem;
+  margin: 0;
+
+  div { display: flex; flex-direction: column; gap: 0.15rem; }
+
+  dt { color: var(--wv-text-muted); font-size: 0.75rem; }
+  dd { margin: 0; font-size: 0.92rem; }
+}
+
+.prof__person {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.4rem 0;
+  color: inherit;
+  text-decoration: none;
+
+  &:hover .prof__personName { text-decoration: underline; }
+
+  span { min-width: 0; display: flex; flex-direction: column; }
+}
+
+.prof__personName { font-weight: 600; font-size: 0.9rem; }
+
+.prof__personRole {
+  color: var(--wv-text-muted);
+  font-size: 0.8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prof__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.prof__tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.6rem;
+  border: 1px solid var(--wv-line-strong);
+  border-radius: 999px;
+  background: var(--wv-accent-soft);
+  font-size: 0.82rem;
+}
+
+.prof__tagCount {
+  color: var(--wv-text-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.prof__state {
+  padding: 2.5rem 1rem;
+  border: 1px dashed var(--wv-line-strong);
+  border-radius: var(--wv-radius-lg);
+  text-align: center;
+  color: var(--wv-text-muted);
+}
+
+.prof__state--error {
+  border-color: var(--wv-danger);
+  background: var(--wv-danger-bg);
+  color: var(--wv-danger);
+}
+
+.prof--loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.7rem;
+}
+
+.sk {
+  display: block;
+  background: linear-gradient(90deg, var(--wv-hover) 25%, var(--wv-surface-sunken) 50%, var(--wv-hover) 75%);
+  background-size: 200% 100%;
+  border-radius: var(--wv-radius);
+  animation: sk-shimmer 1.3s ease-in-out infinite;
+}
+
+.sk--cover { height: 96px; }
+.sk--avatar { width: 88px; height: 88px; border-radius: 50%; margin-top: -34px; }
+.sk--line { height: 0.8rem; width: 40%; }
+.sk--short { width: 22%; }
+
+@keyframes sk-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; }
+}
+
+@media (max-width: 860px) {
+  :host { padding: 1rem; }
+
+  .prof__body { grid-template-columns: 1fr; }
+
+  .prof__identity { flex-wrap: wrap; }
+
+  .prof__stats { gap: 1.25rem; }
+}

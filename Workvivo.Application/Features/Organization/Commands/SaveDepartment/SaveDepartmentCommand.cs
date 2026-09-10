@@ -33,9 +33,13 @@ public sealed class SaveDepartmentCommandValidator : AbstractValidator<SaveDepar
         RuleFor(x => x.DescriptionAr).MaximumLength(1000);
         RuleFor(x => x.DescriptionEn).MaximumLength(1000);
 
+        // Guarded by When, because without it a new top-level department - no id, no
+        // parent - compares null against null, the rule reads that as a violation, and
+        // creating a root department becomes impossible.
         RuleFor(x => x.ParentDepartmentId)
             .Must((command, parentId) => parentId != command.Id)
-            .WithMessage("A department cannot be its own parent.");
+            .WithMessage("A department cannot be its own parent.")
+            .When(x => x.Id.HasValue && x.ParentDepartmentId.HasValue);
     }
 }
 

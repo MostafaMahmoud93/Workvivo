@@ -1491,3 +1491,218 @@ Password reset and email verification need the mail pipeline, which arrives with
 the resources they guard, from the feed phase onward. Refresh-token replay is covered by
 end-to-end verification but not yet by an automated test; that needs the Testcontainers fixture,
 since `ExecuteUpdate` has no in-memory equivalent.
+
+---
+
+## Appendix G — Phase 5 record
+
+Employees and organisation: the first full vertical slice, database through to screen.
+
+### The AutoMapper decision
+
+**No new AutoMapper profiles.** Read paths use explicit `Select()` projections, which is
+what §16 requires anyway — EF translates them to SQL that fetches only the named columns,
+where materialising an entity would pull every column and then fire a lazy-load per
+navigation. Write paths use small explicit mapping blocks. The five existing profiles are
+untouched.
+
+This sidesteps the AutoMapper 16 commercial licence for all new code, and is the better
+technical choice regardless.
+
+### Delivered
+
+**Organisation** — department tree with employee counts, the shared lookup lists
+(cached 30 minutes), department create/update/move/delete.
+
+**Employees** — directory with paging, search, and department/office filters; full profile
+with manager, direct reports, skills and interests; mention type-ahead; self-service profile
+edit; follow and unfollow.
+
+**Angular** — directory and profile pages with skeleton, empty and error states, a
+deterministic-colour avatar, responsive layouts, and permission-gated navigation. All copy
+went through the typed catalogue in both languages.
+
+**Development seeder** — an organisation, 9 departments three levels deep, 4 teams,
+3 offices, 9 job titles, 11 employees with accounts and roles, reporting lines, follows and
+skills. Deferred from Phase 3 precisely so invented people never land in a migration; it
+refuses to run outside Development, and start-up checks the environment a second time.
+
+### Design decisions
+
+**Subtree filtering runs on the materialised path.** "Everyone in Technology" is a
+`Path LIKE '/tech-id/%'` range scan rather than a recursive walk. Verified: 7 people with the
+subtree, 1 without.
+
+**Paging projects before it pages.** `ToPagedResultAsync` takes the projection first, so the
+count and the page both work in DTO terms. The template's repository helpers return entities,
+which with lazy-loading proxies means a query per row afterwards.
+
+**Sorting is allow-listed.** The sort field arrives from the query string; resolving it by
+reflection or string-building the `ORDER BY` would let a caller name any column, including
+ones the projection deliberately omits.
+
+**The birth year never leaves the database.** The profile DTO carries `birthDay` and
+`birthMonth` and nothing else, and only when the employee has not opted out. The panel needs
+a day and a month; the year is the part that identifies a person.
+
+**`UpdateMyProfileCommand` takes no employee id.** The record edited is resolved from the
+authenticated principal, so there is no parameter to tamper with — IDOR closed by shape
+rather than by a check. Its fields are limited to what people own about themselves; accepting
+department or job title here would let anyone promote themselves.
+
+**Follow is idempotent and counters are clamped.** A repeated follow returns success without
+adding a second row, and an unfollow cannot drive a drifted counter below zero.
+
+### Three bugs found by exercising it
+
+**Creating a top-level department was impossible.** The self-parent rule compared
+`ParentDepartmentId != Id`; with both null that is `null != null` → false, so the validator
+reported a violation on every root department. Found by a test that was actually checking
+something else. Now guarded by `When`, and pinned.
+
+**Handled failures were logged as 500s.** `UseSerilogRequestLogging` was nested *inside* the
+exception handler, so it observed the raw exception and recorded a correctly-returned 409 as
+`ERR ... responded 500`. The client got the right answer; the error log filled with false
+alarms that would bury real failures. The pipeline is now correlation → security headers →
+request logging → exception handling, so the logged status is the one the client received.
+
+**An unmanaged subscription in the directory component.** Deriving the loading flag from a
+constructor `subscribe()` produced an NG0203 and leaked a stream past the component's life.
+Folded into the pipeline as a `tap`.
+
+Also fixed a layout bug caught by looking at the rendered page: the profile header's negative
+margin lifted the whole identity row onto the dark cover band, so the name rendered
+dark-on-dark. Only the avatar should straddle it.
+
+### Verified end to end
+
+Directory paging, subtree vs direct department filter, search, mention type-ahead with its
+minimum-length guard, profile with manager and reports, follow/unfollow with correct counters,
+self-follow refused (422 with `ruleCode`), department cycle refused (422), duplicate code
+refused (409), delete blocked while staff remain (422), and a Department Manager receiving 403
+on an endpoint needing `Organization.Manage`.
+
+### Build and test
+
+- Solution: **0 errors**. **164 backend tests** (was 141), **18 Angular tests**, all passing.
+- The 23 new tests concentrate on the path algebra — including the sibling whose id shares a
+  prefix, which is the case the separator-wrapping exists for and the one a naive
+  `StartsWith` gets wrong.
+
+### Not done in this phase
+
+Admin CRUD screens for teams, offices and job titles (the commands follow the department
+pattern; only the department hierarchy carried real logic worth building first). Skill
+endorsement, avatar upload — both wait on file storage. An org-chart visual, as opposed to the
+tree data the endpoint already returns.
+
+---
+
+## Appendix H — Phase 6 record
+
+The feed: posts, audience targeting, reactions, comments, mentions.
+
+### The audience engine
+
+`IAudienceResolver` builds a viewer's key set — typically 10–30 short strings — and the
+feed is then one `EXISTS` against a covering index on `Audience_Key`, rather than a union
+of one predicate per targeting dimension.
+
+**The part that is easy to get wrong:** the key set includes the viewer's department *and
+every ancestor of it*, parsed from the materialised path built in Phase 5. A post targeted
+at Technology has to reach an engineer in Platform three levels down; without the ancestor
+keys a division-wide announcement silently misses most of the division.
+
+Verified against the running system with four seeded people:
+
+| Viewer | Department | Office | Posts seen |
+| ------ | ---------- | ------ | ---------: |
+| Yusuf | Platform (under Engineering, under Technology) | Dubai | 6 |
+| Tariq | Applications (under Technology) | London | 4 |
+| Dina | Sales | London | 3 |
+| Rami | Finance (under Corporate) | Abu Dhabi | 2 |
+
+Yusuf and Tariq both receive the Technology posts from two and three levels down; Rami sees
+only the company-wide ones; the Dubai parking notice reaches Dubai and not London; and the
+post addressed to one person reaches only them.
+
+Approved community memberships contribute keys; **pending ones do not** — that is what the
+approval is for.
+
+### Query shape
+
+A feed page is **four queries regardless of page size**: the page itself (keyset, ordered,
+projected), then batched reaction tallies, the viewer's own reactions, attachments and
+mentions — each keyed on the ids already fetched. Counters are denormalised on the post, so
+a page of twenty is not forty aggregates against the two largest tables.
+
+Keyset, not offset: `OFFSET 40000` makes SQL Server read and discard forty thousand rows.
+The cursor compares `(Published_Date, Id)` as a tuple so posts published in the same tick
+are neither skipped nor repeated at a page boundary.
+
+### Two bugs found by exercising it
+
+**A stored-XSS hole in the Phase 1 sanitiser.** `HtmlSanitizerAdapter` was configured by
+passing an `HtmlSanitizerOptions` instance — which replaces *every* default set, including
+`UriAttributes`, which the options object leaves **empty**. With no attribute registered as
+a URI, the scheme allow-list was never consulted and `href="javascript:alert(1)"` passed
+through untouched. The configuration read correctly and did nothing.
+
+Confirmed in isolation: options constructor → `UriAttributes.Count == 0`, payload survives;
+default constructor → 15, payload stripped. The adapter now starts from the library's
+defaults and narrows them. **13 tests pin the behaviour**, not the configuration.
+
+Worth noting the shape of this: the code looked right, the intent was right, and the effect
+was nil. Only sending an actual payload through it revealed that.
+
+**Depth-2 replies were silently missing.** The thread query fetched children of the page's
+top-level comments — depth 1 — and stopped. A reply to a reply existed in the database and
+never appeared, which reads as lost data rather than as a paging boundary. Now batched by
+level, which is finite precisely because nesting is capped at two.
+
+There was also a **client-evaluation trap**: the comment projection was a static *method*,
+so EF could not translate it, materialised entities, and lazy-loaded `Author` per row while
+the outer reader was open — failing with *"There is already an open DataReader"*. This is
+risk #4 from Phase 1 arriving in practice. Fixed by holding the projection as an
+`Expression<Func<Comment, CommentDto>>`, which EF composes into the SQL.
+
+### Security decisions
+
+- **Sanitised on write, never on read.** Cleaning at render time leaves live payloads in the
+  database, and one consumer that forgets — an export, a digest email, a mobile client — is
+  enough for them to fire.
+- **`PostAuthorization` is the single resource check.** Author-or-moderator, in one place,
+  shared by every command taking a post id. Not-found and not-permitted both return 404:
+  distinguishing them confirms an id exists to somebody who cannot see it.
+- **Marking a post official needs `Announcement.Publish`**; announcements need
+  `Announcement.Create`. Otherwise anyone who can post can speak for the company.
+- **Posting into a community requires approved membership** — otherwise knowing a community
+  id is enough to post into a private group.
+- **Community posts are addressed to the community regardless of what the caller asked for**,
+  so a private group's content cannot be widened to the whole company.
+- **Counters are incremented in the database**, not read-modify-written: two people reacting
+  at the same moment would otherwise both read the same value and one write would be lost.
+
+### Verified end to end
+
+Audience targeting per viewer (table above); reaction set / switch / clear with the total
+moving only when it should; comment depth 0→1→2 accepted and depth 3 refused (422 with
+`ruleCode`); every XSS vector stripped while safe markup and links survive; the thread
+rendering with depth indentation and no Reply control at the cap.
+
+### Build and test
+
+- Solution: **0 errors**. **193 backend tests** (was 164), **18 Angular tests**, all passing.
+- The 29 new tests are concentrated on the sanitiser and on audience-key algebra — the two
+  places where a defect is silent rather than loud.
+
+### Known gaps
+
+The seeded post's comment count reads 8 against 6 visible rows: two were deleted directly in
+SQL during the XSS investigation, bypassing the handler that maintains the counter. This is
+the drift the design already anticipates with a nightly reconciliation job — not yet built.
+
+Not done: post editing (state changes are), attachments (needs file storage), the mention
+picker UI (the API stores and returns mentions; the composer does not yet offer them),
+scheduled publishing (the column and status exist; the job arrives with Hangfire), and
+`Feed_PostViews` is written by nothing yet, so announcement reach is not measurable.

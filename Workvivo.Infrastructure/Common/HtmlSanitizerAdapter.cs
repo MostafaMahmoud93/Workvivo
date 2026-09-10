@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.RegularExpressions;
 using Ganss.Xss;
 using Workvivo.Domain.Abstractions.Interfaces;
@@ -14,38 +14,51 @@ namespace Workvivo.Infrastructure.Common;
 /// </summary>
 public sealed partial class HtmlSanitizerAdapter : IContentSanitizer
 {
+    private static readonly string[] Tags =
+    [
+        "p", "br", "strong", "b", "em", "i", "u", "s", "blockquote",
+        "ul", "ol", "li", "h1", "h2", "h3", "h4",
+        "a", "img", "code", "pre", "hr", "span", "div",
+        "table", "thead", "tbody", "tr", "th", "td",
+    ];
+
+    private static readonly string[] Attributes =
+    [
+        "href", "title", "alt", "src", "width", "height", "class",
+
+        // Mentions render as a span carrying the employee id, so the client can turn
+        // one into a profile link without re-parsing the text.
+        "data-mention-id", "data-mention-type",
+    ];
+
+    private static readonly string[] Schemes = ["http", "https", "mailto"];
+
+    private static readonly string[] CssProperties = ["text-align", "direction"];
+
     private readonly HtmlSanitizer _sanitizer;
 
     public HtmlSanitizerAdapter()
     {
-        _sanitizer = new HtmlSanitizer(new HtmlSanitizerOptions
-        {
-            AllowedTags = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "p", "br", "strong", "b", "em", "i", "u", "s", "blockquote",
-                "ul", "ol", "li", "h1", "h2", "h3", "h4",
-                "a", "img", "code", "pre", "hr", "span", "div", "table", "thead",
-                "tbody", "tr", "th", "td",
-            },
-            AllowedAttributes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "href", "title", "alt", "src", "width", "height", "class",
-                // Mentions are rendered as a span carrying the employee id, so the
-                // client can turn one into a profile link without re-parsing text.
-                "data-mention-id", "data-mention-type",
-            },
-            AllowedCssProperties = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                "text-align", "direction",
-            },
-            AllowedSchemes = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
-            {
-                // No "javascript", and no "data" - a data: URL can carry an SVG, and an
-                // SVG can carry script.
-                "http", "https", "mailto",
-            },
-            AllowedAtRules = new HashSet<AngleSharp.Css.Dom.CssRuleType>(),
-        });
+        // Built from the default constructor and then narrowed - never from an
+        // HtmlSanitizerOptions instance.
+        //
+        // Passing options replaces *every* default set, including UriAttributes, which
+        // an options object leaves empty. With no attribute registered as a URI, the
+        // scheme allow-list is never consulted and href="javascript:alert(1)" survives
+        // sanitisation untouched. The configuration looks correct and does nothing.
+        //
+        // Starting from the defaults keeps UriAttributes (15 of them) and anything else
+        // the library considers dangerous that this list has not thought of.
+        _sanitizer = new HtmlSanitizer();
+
+        Replace(_sanitizer.AllowedTags, Tags);
+        Replace(_sanitizer.AllowedAttributes, Attributes);
+        Replace(_sanitizer.AllowedSchemes, Schemes);
+        Replace(_sanitizer.AllowedCssProperties, CssProperties);
+
+        // No @import, no @font-face - both fetch remote resources from inside a style
+        // block, which is a data-exfiltration channel.
+        _sanitizer.AllowedAtRules.Clear();
 
         // Outbound links open in a new tab; noopener stops the opened page reaching
         // back through window.opener, and noreferrer keeps internal URLs out of
@@ -72,11 +85,22 @@ public sealed partial class HtmlSanitizerAdapter : IContentSanitizer
         }
 
         // Sanitise first: stripping tags from raw input with a regex would happily
-        // unwrap a script element and leave its body as "text".
+        // unwrap a script element and leave its body behind as "text".
         var clean = _sanitizer.Sanitize(html);
         var withoutTags = TagPattern().Replace(clean, " ");
 
         return WhitespacePattern().Replace(WebUtility.HtmlDecode(withoutTags), " ").Trim();
+    }
+
+    /// <summary>Narrows one of the library's default sets to exactly the values given.</summary>
+    private static void Replace(ISet<string> target, IEnumerable<string> values)
+    {
+        target.Clear();
+
+        foreach (var value in values)
+        {
+            target.Add(value);
+        }
     }
 
     [GeneratedRegex("<[^>]+>", RegexOptions.Compiled)]

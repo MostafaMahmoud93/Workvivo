@@ -3,6 +3,16 @@
 
   <nav class="shell__nav">
     <a routerLink="/home" routerLinkActive="is-active">{{ text().app.home }}</a>
+    <a *appHasPermission="'Post.View'" routerLink="/feed" routerLinkActive="is-active">{{
+      text().app.feed
+    }}</a>
+    <a
+      *appHasPermission="'Employee.View'"
+      routerLink="/employees"
+      routerLinkActive="is-active"
+      >{{ text().app.directory }}</a
+    >
+    <a routerLink="/profile" routerLinkActive="is-active">{{ text().app.myProfile }}</a>
     <a routerLink="/public" routerLinkActive="is-active">{{ text().app.public }}</a>
   </nav>
 

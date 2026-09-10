@@ -1,0 +1,111 @@
+<section class="dir">
+  <header class="dir__head">
+    <div>
+      <h1>{{ text().directory.heading }}</h1>
+      <p class="dir__count">
+        @if (!loading()) {
+          {{ text().directory.resultCount }}: {{ page().totalCount }}
+        }
+      </p>
+    </div>
+  </header>
+
+  <div class="dir__filters">
+    <label class="wv-field dir__search">
+      <span class="wv-field__label">{{ text().directory.search }}</span>
+      <input
+        type="search"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event); onFilterChange()"
+        [placeholder]="text().directory.searchPlaceholder"
+        dir="auto"
+      />
+    </label>
+
+    <label class="wv-field">
+      <span class="wv-field__label">{{ text().directory.department }}</span>
+      <select [ngModel]="departmentId()" (ngModelChange)="departmentId.set($event); onFilterChange()">
+        <option value="">{{ text().directory.all }}</option>
+        @for (item of lookups()?.departments ?? []; track item.id) {
+          <option [value]="item.id">{{ item.name }}</option>
+        }
+      </select>
+    </label>
+
+    <label class="wv-field">
+      <span class="wv-field__label">{{ text().directory.location }}</span>
+      <select [ngModel]="locationId()" (ngModelChange)="locationId.set($event); onFilterChange()">
+        <option value="">{{ text().directory.all }}</option>
+        @for (item of lookups()?.locations ?? []; track item.id) {
+          <option [value]="item.id">{{ item.name }}</option>
+        }
+      </select>
+    </label>
+
+    <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="clearFilters()">
+      {{ text().directory.clear }}
+    </button>
+  </div>
+
+  @if (loading()) {
+    <ul class="dir__grid" aria-hidden="true">
+      @for (item of skeletons; track $index) {
+        <li class="dir__card dir__card--skeleton">
+          <span class="sk sk--avatar"></span>
+          <span class="sk sk--line"></span>
+          <span class="sk sk--line sk--short"></span>
+        </li>
+      }
+    </ul>
+  } @else if (failed()) {
+    <p class="dir__state dir__state--error">{{ text().directory.loadFailed }}</p>
+  } @else if (isEmpty()) {
+    <p class="dir__state">{{ text().directory.empty }}</p>
+  } @else {
+    <ul class="dir__grid">
+      @for (employee of page().items; track employee.id) {
+        <li class="dir__card">
+          <a class="dir__link" [routerLink]="['/employees', employee.id]">
+            <app-avatar [name]="employee.displayName" [size]="48" />
+            <span class="dir__body">
+              <span class="dir__name" dir="auto">{{ employee.displayName }}</span>
+              <span class="dir__role" dir="auto">{{ employee.jobTitle ?? '—' }}</span>
+              <span class="dir__meta" dir="auto">
+                {{ employee.department ?? '—' }}
+                @if (employee.location) {
+                  <span aria-hidden="true"> · </span>{{ employee.location }}
+                }
+              </span>
+            </span>
+          </a>
+        </li>
+      }
+    </ul>
+
+    @if (page().totalPages > 1) {
+      <nav class="dir__pager" [attr.aria-label]="text().directory.pagination">
+        <button
+          type="button"
+          class="wv-btn wv-btn--quiet wv-btn--sm"
+          [disabled]="!page().hasPrevious"
+          (click)="goToPage(page().pageNumber - 1)"
+        >
+          {{ text().directory.previous }}
+        </button>
+
+        <span class="dir__pageLabel">
+          {{ page().pageNumber }} / {{ page().totalPages }}
+        </span>
+
+        <button
+          type="button"
+          class="wv-btn wv-btn--quiet wv-btn--sm"
+          [disabled]="!page().hasNext"
+          (click)="goToPage(page().pageNumber + 1)"
+        >
+          {{ text().directory.next }}
+        </button>
+      </nav>
+    }
+  }
+</section>

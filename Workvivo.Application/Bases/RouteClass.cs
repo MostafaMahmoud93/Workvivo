@@ -56,6 +56,21 @@ public static class RouteClass
         public const string Unfollow = "api/employees/{employeeId:guid}/follow";
     }
 
+    public static class Posts
+    {
+        public const string Feed = "api/posts/feed";
+        public const string Create = "api/posts";
+        public const string React = "api/posts/{postId:guid}/reactions";
+        public const string State = "api/posts/{postId:guid}/state";
+    }
+
+    public static class Comments
+    {
+        public const string List = "api/posts/{postId:guid}/comments";
+        public const string Add = "api/posts/{postId:guid}/comments";
+        public const string Delete = "api/comments/{commentId:guid}";
+    }
+
     public static class OrganizationRoutes
     {
         public const string DepartmentTree = "api/organization/departments/tree";
