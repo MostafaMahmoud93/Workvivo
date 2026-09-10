@@ -40,11 +40,15 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IContentSanitizer, HtmlSanitizerAdapter>();
 
-        // Constructed eagerly rather than lazily: it throws when the key is missing,
-        // and that failure belongs at startup, not at the moment somebody casts the
-        // first anonymous vote.
-        services.AddSingleton<IAnonymityHasher>(sp =>
-            new AnonymityHasher(sp.GetRequiredService<IConfiguration>()));
+        // Constructed here, while services are being registered, rather than behind a
+        // factory.
+        //
+        // A factory-registered singleton is built on first resolve, so a missing or
+        // weak key would surface at the moment somebody cast the first anonymous vote
+        // - long after deployment, as a 500 on a feature nobody was testing.
+        // Constructing it now means the same misconfiguration stops the application
+        // starting, next to the JWT signing key check that works the same way.
+        services.AddSingleton<IAnonymityHasher>(new AnonymityHasher(configuration));
 
         AddCaching(services, configuration);
         AddStorage(services, configuration);

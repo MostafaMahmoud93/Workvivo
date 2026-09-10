@@ -11,19 +11,86 @@ public static class ConfigureAuthuntication
     /// </summary>
     private const string HubPath = "/hubs";
 
-    public static void AddAuthuntication(IServiceCollection services, IConfiguration configuration)
+    /// <summary>
+    /// Reports what configuration actually contains, rather than what it ought to.
+    ///
+    /// An earlier version of this inferred the cause from the environment name -
+    /// "you are in Development, so user secrets are loaded". That inference is
+    /// precisely what fails when the message is needed: the environment can be
+    /// Development and the secrets file still not reach the configuration root,
+    /// and a message asserting otherwise sends the reader to check the one thing
+    /// that is already correct.
+    ///
+    /// So it asks. The provider list comes from the configuration root, and each
+    /// provider is queried for the key by name. No value is ever printed - only
+    /// whether a provider holds one - because this text ends up in logs.
+    /// </summary>
+    private static string Remedy(IConfiguration configuration, IHostEnvironment environment)
+    {
+        var report = new StringBuilder();
+
+        report.Append($"Running as '{environment.EnvironmentName}'. ");
+
+        if (configuration is not IConfigurationRoot root)
+        {
+            return report
+                .Append("Configuration is not a root, so its providers cannot be listed.")
+                .ToString();
+        }
+
+        var providers = root.Providers.ToList();
+
+        var secrets = providers.Find(provider =>
+            provider.GetType().Name.Contains("Json", StringComparison.Ordinal)
+            && provider.ToString()?.Contains("secrets.json", StringComparison.OrdinalIgnoreCase) == true);
+
+        report.Append(secrets is null
+            ? "The user-secrets provider is NOT loaded - only Development loads it, and only when "
+                + "the entry assembly carries a UserSecretsId. "
+            : "The user-secrets provider IS loaded. ");
+
+        // Which provider, if any, actually holds the key. The last one to answer
+        // wins in configuration, so naming them all shows an override too.
+        var holders = providers
+            .Where(provider => provider.TryGet($"{JwtOptions.SectionName}:{nameof(JwtOptions.SigningKey)}", out var value)
+                && !string.IsNullOrWhiteSpace(value))
+            .Select(provider => provider.ToString() ?? provider.GetType().Name)
+            .ToList();
+
+        report.Append(holders.Count == 0
+            ? "No configuration provider supplies Jwt:SigningKey. "
+            : $"Supplied by: {string.Join(" then ", holders)} (the last one wins). ");
+
+        report.Append(environment.IsDevelopment()
+            ? "Set it with: dotnet user-secrets set \"Jwt:SigningKey\" \"<64+ random characters>\" "
+                + "--project Workvivo.API"
+            : "Supply Jwt__SigningKey from the environment or a secret store, or set "
+                + "ASPNETCORE_ENVIRONMENT=Development if this was meant to be a local run.");
+
+        return report.ToString();
+    }
+
+    public static void AddAuthuntication(
+        IServiceCollection services,
+        IConfiguration configuration,
+        IHostEnvironment environment)
     {
         var jwt = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
             ?? throw new InvalidOperationException(
-                "The Jwt configuration section is missing. Set Jwt:SigningKey, Jwt:Issuer and Jwt:Audience "
-                + "through user-secrets in development or the environment in every other environment.");
+                "The Jwt configuration section is missing. " + Remedy(configuration, environment));
 
         if (string.IsNullOrWhiteSpace(jwt.SigningKey) || jwt.SigningKey.Length < 32)
         {
             // Refusing to start beats starting with a guessable key: a weak signing key
             // lets anyone who guesses it mint a token for any user, including an admin.
+            //
+            // The message names the environment because that is the whole diagnosis.
+            // The key being absent means two completely different things depending on
+            // it, and they need opposite fixes - so a message that says only "it is
+            // missing" sends people to check the one place that is already correct.
             throw new InvalidOperationException(
-                "Jwt:SigningKey must be set to at least 32 characters. It must never be committed to source control.");
+                "Jwt:SigningKey must be set to at least 32 characters. It must never be "
+                + "committed to source control. " + Remedy(configuration, environment));
         }
 
         var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey));

@@ -36,6 +36,47 @@ was committed in `appsettings.json` early in the project. It has been removed fr
 the working tree, but removing a secret from a file does not remove it from git
 history, and it must be treated as disclosed.
 
+## "Jwt:SigningKey must be set to at least 32 characters"
+
+The application refuses to start without its secrets. That is deliberate, but the
+message does not say *why* the key is missing, and there are two quite different
+reasons.
+
+**Running locally and it used to work.** User secrets are only loaded when the
+environment is `Development`, and an unset `ASPNETCORE_ENVIRONMENT` defaults to
+`Production` - so the key is on disk and simply never read. Any of these fixes it:
+
+```bash
+# from the Workvivo.API folder - launchSettings.json sets Development
+dotnet run
+
+# or say so explicitly, from anywhere
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project Workvivo.API
+```
+
+Confirm the store has a key:
+
+```bash
+dotnet user-secrets list --project Workvivo.API
+```
+
+and set one if it does not:
+
+```bash
+dotnet user-secrets set "Jwt:SigningKey" "<64 or more random characters>" --project Workvivo.API
+```
+
+**Running anywhere that is not Development.** There are no user secrets, so both
+keys have to come from the environment or a secret store:
+
+```bash
+export Jwt__SigningKey='...at least 32 characters...'
+export Anonymity__Key='...a different 32+ characters...'
+```
+
+Both are checked while services are being registered, so a missing one stops the
+application starting rather than failing later on the first request that needs it.
+
 ## What this compose file is not
 
 It runs the product; it is not a production topology.

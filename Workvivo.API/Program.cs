@@ -22,6 +22,18 @@ try
 {
     var builder = WebApplication.CreateBuilder(args);
 
+    // Logged before any configuration is read, because the environment decides
+    // whether user secrets are loaded at all - and every "the key is missing"
+    // report starts with somebody not knowing which environment they were in.
+    Log.Information(
+        "Workvivo.API configuring for {Environment} (user secrets are read in Development only)",
+        builder.Environment.EnvironmentName);
+
+    // Fills in the local development keys when they are missing, so a fresh clone
+    // runs without a setup step. Development only - every other environment still
+    // refuses to start without them. See DevelopmentSecrets for why that is safe.
+    DevelopmentSecrets.EnsurePresent(builder.Configuration, builder.Environment, Log.Logger);
+
     builder.AddWorkvivoSerilog();
 
     // Do not advertise the server software. Free, and it removes one hint about which
@@ -97,7 +109,8 @@ try
 
     ConfigureDatabase.ConfigureDatabases(builder.Services, builder.Configuration);
     ConfigureRepositoriesType.AddRepositoriesLayer(builder.Services);
-    ConfigureAuthuntication.AddAuthuntication(builder.Services, builder.Configuration);
+    ConfigureAuthuntication.AddAuthuntication(
+        builder.Services, builder.Configuration, builder.Environment);
     builder.Services.AddAuthorization();
 
     builder.Services.AddInfrastructureLayer(builder.Configuration);
