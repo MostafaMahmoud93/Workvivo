@@ -1,0 +1,29 @@
+# Everything that would either bloat the build context or leak into an image.
+
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.angular/
+**/TestResults/
+
+.git/
+.github/
+.vs/
+.vscode/
+.idea/
+
+# Never in an image. appsettings.Development.json carries the local anonymity key
+# and switches on the development seeder, which creates accounts with a published
+# password.
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/*.user
+**/.env
+**/*.pfx
+**/*.key
+
+**/logs/
+**/uploads/
+docs/
+*.md

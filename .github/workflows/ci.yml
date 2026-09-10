@@ -1,0 +1,106 @@
+name: CI
+
+# Every push and every pull request. A pipeline that only runs on one branch tells
+# you about a break after it has been merged.
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+concurrency:
+  # A new push supersedes the run it interrupted; finishing the old one wastes
+  # minutes on a commit nobody is waiting for.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore
+        run: dotnet restore Workvivo.sln
+
+      # Warnings are not errors here on purpose: the template this is built on
+      # carries several hundred nullability warnings that predate the platform
+      # code, and failing on them would mean either a misleading green build or a
+      # mass edit of code nobody is changing.
+      - name: Build
+        run: dotnet build Workvivo.sln --configuration Release --no-restore
+
+      # Each test project is run separately.
+      #
+      # `dotnet test` across the solution reports "Zero tests ran" with xunit.v3 on
+      # Microsoft.Testing.Platform, which is the worst possible failure mode: a
+      # green pipeline that ran nothing. Running the built executables is what
+      # actually works, and it is what test.ps1 does locally.
+      - name: Test - Domain
+        run: dotnet run --project tests/Workvivo.Domain.Tests --configuration Release --no-build
+
+      - name: Test - Application
+        run: dotnet run --project tests/Workvivo.Application.Tests --configuration Release --no-build
+
+      - name: Test - API
+        run: dotnet run --project tests/Workvivo.API.Tests --configuration Release --no-build
+
+      # Fails the build on a package with a known vulnerability. Advisory data
+      # changes without any commit, so this can start failing on a branch that has
+      # not been touched - which is the point.
+      - name: Vulnerable packages
+        run: |
+          dotnet list Workvivo.sln package --vulnerable --include-transitive > audit.txt
+          cat audit.txt
+          if grep -q "has the following vulnerable packages" audit.txt; then
+            echo "::error::A referenced package has a known vulnerability."
+            exit 1
+          fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: WorkvivoUI
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: WorkvivoUI/package-lock.json
+
+      # `npm ci` rather than install: it fails when the lockfile and manifest
+      # disagree, instead of silently resolving something else.
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Test
+        run: npx ng test --watch=false
+
+  images:
+    # Only after both halves pass. Building an image from code that does not
+    # compile wastes several minutes to produce something unusable.
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Built but not pushed. Publishing to a registry needs credentials and a
+      # deliberate decision about where; this proves the Dockerfiles work on every
+      # commit, which is the part that silently rots.
+      - name: Build the API image
+        run: docker build -f Dockerfile -t workvivo-api:${{ github.sha }} .
+
+      - name: Build the web image
+        run: docker build -f WorkvivoUI/Dockerfile -t workvivo-web:${{ github.sha }} ./WorkvivoUI

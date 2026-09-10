@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Workvivo.Application.Common.Security;
 using Workvivo.Domain.Abstractions.Interfaces;
 using Workvivo.Domain.Entities.Feed;
 using Workvivo.Domain.Entities.Organization;
@@ -23,30 +24,29 @@ public sealed class PostAuthorization
     private readonly IUnitOfWork _unitOfWork;
     private readonly IPermissionService _permissions;
     private readonly ICurrentUser _currentUser;
+    private readonly CurrentEmployee _currentEmployee;
 
     public PostAuthorization(
         IUnitOfWork unitOfWork,
         IPermissionService permissions,
-        ICurrentUser currentUser)
+        ICurrentUser currentUser,
+        CurrentEmployee currentEmployee)
     {
         _unitOfWork = unitOfWork;
         _permissions = permissions;
         _currentUser = currentUser;
+        _currentEmployee = currentEmployee;
     }
 
-    /// <summary>The signed-in user's employee id, or a failure if they have no profile.</summary>
-    public async Task<Guid> RequireEmployeeIdAsync(CancellationToken cancellationToken)
-    {
-        var userId = _currentUser.UserId ?? throw new UnauthorizedException();
-
-        var employeeId = await _unitOfWork.Repository<Employee, Guid>()
-            .GetAllQ()
-            .Where(employee => employee.User_Id == userId)
-            .Select(employee => (Guid?)employee.Id)
-            .FirstOrDefaultAsync(cancellationToken);
-
-        return employeeId ?? throw new ForbiddenException("You do not have an employee profile.");
-    }
+    /// <summary>
+    /// The signed-in user's employee id, or a failure if they have no profile.
+    ///
+    /// Delegates to the shared resolver. The lookup started here and every later
+    /// feature area needed it, so it moved rather than being copied - and the shared
+    /// one caches per request, which this did not.
+    /// </summary>
+    public Task<Guid> RequireEmployeeIdAsync(CancellationToken cancellationToken) =>
+        _currentEmployee.RequireIdAsync(cancellationToken);
 
     /// <summary>
     /// Loads a post the caller is allowed to change, or fails.

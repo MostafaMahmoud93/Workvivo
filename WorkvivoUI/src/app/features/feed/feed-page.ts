@@ -40,6 +40,9 @@ export class FeedPage {
   readonly loadingMore = signal(false);
   readonly failed = signal(false);
 
+  /** Posts already reported as seen in this session, so a re-render is not a new view. */
+  private readonly reported = new Set<string>();
+
   readonly composerText = signal('');
   readonly posting = signal(false);
 
@@ -195,6 +198,30 @@ export class FeedPage {
     this.load(this.cursor());
   }
 
+  /**
+   * Tells the server which posts have been rendered.
+   *
+   * Called once per page of the feed rather than per post, and only for posts not
+   * already reported in this session - the server deduplicates too, but not asking
+   * is cheaper than asking and being told it already knew.
+   *
+   * Failures are ignored on purpose: a missed view is a slightly low reach figure,
+   * and it is not worth a visible error or a retry.
+   */
+  private reportViews(items: FeedItem[]): void {
+    const unseen = items.map((item) => item.id).filter((id) => !this.reported.has(id));
+
+    if (unseen.length === 0) {
+      return;
+    }
+
+    for (const id of unseen) {
+      this.reported.add(id);
+    }
+
+    this.feed.recordViews(unseen).subscribe({ error: () => undefined });
+  }
+
   private load(cursor: string | null): void {
     if (cursor === null) {
       this.loading.set(true);
@@ -204,6 +231,7 @@ export class FeedPage {
     this.feed.getFeed(cursor).subscribe({
       next: (page) => {
         this.posts.update((current) => (cursor === null ? page.items : [...current, ...page.items]));
+        this.reportViews(page.items);
         this.cursor.set(page.nextCursor);
         this.hasMore.set(page.hasMore);
         this.loading.set(false);

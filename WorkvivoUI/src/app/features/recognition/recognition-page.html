@@ -1,0 +1,201 @@
+<section class="recognition">
+  <header class="recognition__head">
+    <h1>{{ text().recognition.heading }}</h1>
+    <p>{{ text().recognition.lede }}</p>
+  </header>
+
+  <div class="recognition__layout">
+    <div class="recognition__main">
+      <form class="give" (submit)="$event.preventDefault(); send()">
+        <h2>{{ text().recognition.giveHeading }}</h2>
+
+        <div class="give__row">
+          <label for="recipient">{{ text().recognition.recipient }}</label>
+
+          @if (recipient(); as person) {
+            <div class="give__chosen">
+              <app-avatar [name]="person.displayName" [size]="28" />
+              <span dir="auto">{{ person.displayName }}</span>
+              <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="clearRecipient()">
+                {{ text().recognition.change }}
+              </button>
+            </div>
+          } @else {
+            <input
+              id="recipient"
+              type="search"
+              autocomplete="off"
+              [placeholder]="text().recognition.recipientPlaceholder"
+              [ngModel]="recipientQuery()"
+              (ngModelChange)="recipientQuery.set($event)"
+              name="recipientQuery"
+            />
+
+            @if (suggestions().length > 0) {
+              <ul class="give__suggestions">
+                @for (person of suggestions(); track person.id) {
+                  <li>
+                    <button type="button" (click)="choose(person)">
+                      <app-avatar [name]="person.displayName" [size]="26" />
+                      <span dir="auto">{{ person.displayName }}</span>
+                      @if (person.jobTitle) {
+                        <span class="give__title" dir="auto">{{ person.jobTitle }}</span>
+                      }
+                    </button>
+                  </li>
+                }
+              </ul>
+            }
+          }
+        </div>
+
+        <div class="give__row">
+          <label for="type">{{ text().recognition.category }}</label>
+          <select
+            id="type"
+            name="type"
+            [ngModel]="typeId()"
+            (ngModelChange)="typeId.set($event)"
+          >
+            @for (type of types(); track type.id) {
+              <option [value]="type.id">{{ type.name }} ({{ type.defaultPoints }})</option>
+            }
+          </select>
+        </div>
+
+        <div class="give__row">
+          <label for="message">{{ text().recognition.message }}</label>
+          <textarea
+            id="message"
+            name="message"
+            rows="3"
+            [placeholder]="text().recognition.messagePlaceholder"
+            [ngModel]="message()"
+            (ngModelChange)="message.set($event); sent.set(false)"
+            dir="auto"
+          ></textarea>
+          <span class="give__hint">{{ text().recognition.messageHint }}</span>
+        </div>
+
+        <div class="give__row give__row--inline">
+          <label for="visibility">{{ text().recognition.visibility }}</label>
+          <select
+            id="visibility"
+            name="visibility"
+            [ngModel]="visibility()"
+            (ngModelChange)="visibility.set(+$event)"
+          >
+            <option [value]="visibilities.Public">{{ text().recognition.visibilityPublic }}</option>
+            <option [value]="visibilities.Department">
+              {{ text().recognition.visibilityDepartment }}
+            </option>
+            <option [value]="visibilities.Private">{{ text().recognition.visibilityPrivate }}</option>
+          </select>
+
+          <button type="submit" class="wv-btn wv-btn--primary" [disabled]="!canSend()">
+            {{ sending() ? text().recognition.sending : text().recognition.send }}
+          </button>
+        </div>
+
+        @if (sent()) {
+          <p class="give__ok">{{ text().recognition.sentOk }}</p>
+        }
+
+        @if (error(); as message) {
+          <p class="give__error">{{ message }}</p>
+        }
+      </form>
+
+      <h2 class="recognition__wall-heading">{{ text().recognition.wall }}</h2>
+
+      @if (loading()) {
+        <p class="recognition__hint">{{ text().recognition.loading }}</p>
+      } @else if (wall().length === 0) {
+        <p class="recognition__hint">{{ text().recognition.empty }}</p>
+      } @else {
+        <ul class="wall">
+          @for (item of wall(); track item.id) {
+            <li class="wall__item">
+              <span
+                class="wall__badge"
+                [style.background]="item.badgeColor || 'var(--wv-accent-soft)'"
+                aria-hidden="true"
+                >{{ item.badgeIcon || '&#127942;' }}</span
+              >
+
+              <div class="wall__body">
+                <p class="wall__who">
+                  <a [routerLink]="['/employees', item.senderEmployeeId]" dir="auto">{{
+                    item.senderDisplayName
+                  }}</a>
+                  <span>&rarr;</span>
+                  <a [routerLink]="['/employees', item.recipientEmployeeId]" dir="auto">{{
+                    item.recipientDisplayName
+                  }}</a>
+                </p>
+
+                <p class="wall__category">{{ item.recognitionTypeName }} &middot; {{ item.points }} {{ text().recognition.points }}</p>
+                <p class="wall__message" dir="auto">{{ item.message }}</p>
+                <p class="wall__when">{{ when(item.recognisedOn) }}</p>
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    </div>
+
+    <aside class="recognition__side">
+      <h2>{{ text().recognition.leaderboard }}</h2>
+
+      <div class="periods" role="tablist">
+        @for (option of periods; track option) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="period() === option"
+            [class.is-active]="period() === option"
+            (click)="setPeriod(option)"
+          >
+            {{ periodLabel(option) }}
+          </button>
+        }
+      </div>
+
+      @if (board(); as leaderboard) {
+        @if (leaderboard.entries.length === 0) {
+          <p class="recognition__hint">{{ text().recognition.noLeaders }}</p>
+        } @else {
+          <ol class="board">
+            @for (entry of leaderboard.entries; track entry.employeeId) {
+              <li class="board__row">
+                <span class="board__rank">{{ entry.rank }}</span>
+                <app-avatar [name]="entry.displayName" [size]="28" />
+                <a class="board__name" [routerLink]="['/employees', entry.employeeId]" dir="auto">{{
+                  entry.displayName
+                }}</a>
+                <span class="board__points">{{ entry.points }}</span>
+              </li>
+            }
+          </ol>
+
+          @if (leaderboard.me; as me) {
+            <p class="board__me">
+              {{ text().recognition.yourPosition }}: #{{ me.rank }} &middot; {{ me.points }}
+              {{ text().recognition.points }}
+            </p>
+          }
+
+          @if (leaderboard.generatedAt) {
+            <!-- Shown because the board is a snapshot. A stale number is fine; a
+                 stale number that looks live is misleading. -->
+            <p class="board__stamp">
+              {{ text().recognition.updated }} {{ when(leaderboard.generatedAt) }}
+            </p>
+          }
+        }
+      } @else {
+        <p class="recognition__hint">{{ text().recognition.loading }}</p>
+      }
+    </aside>
+  </div>
+</section>

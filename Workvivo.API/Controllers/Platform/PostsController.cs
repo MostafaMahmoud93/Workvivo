@@ -7,6 +7,7 @@ using Workvivo.Application.Features.Comments.Dtos;
 using Workvivo.Application.Features.Comments.Queries.GetComments;
 using Workvivo.Application.Features.Posts.Commands.CreatePost;
 using Workvivo.Application.Features.Posts.Commands.ReactToPost;
+using Workvivo.Application.Features.Posts.Commands.RecordPostViews;
 using Workvivo.Application.Features.Posts.Commands.UpdatePostState;
 using Workvivo.Application.Features.Posts.Dtos;
 using Workvivo.Application.Features.Posts.Queries.GetFeed;
@@ -82,6 +83,22 @@ public class PostsController : ApiControllersBase
         return Ok(ApiResponse.Ok("Post updated."));
     }
 
+    /// <summary>
+    /// Records that the caller has seen these posts.
+    ///
+    /// A batch, because the client observes a screenful at a time. This is the
+    /// highest-volume write in the product, which is why it is one request per
+    /// screenful rather than one per post.
+    /// </summary>
+    [HttpPost]
+    [Route(RouteClass.Posts.Views)]
+    [HasPermission(Permissions.Post.View)]
+    public async Task<IActionResult> RecordViews(
+        [FromBody] RecordViewsRequest request,
+        CancellationToken cancellationToken) =>
+        Ok(ApiResponse<int>.Ok(await _sender.Send(
+            new RecordPostViewsCommand(request.PostIds ?? []), cancellationToken)));
+
     [HttpGet]
     [Route(RouteClass.Comments.List)]
     [HasPermission(Permissions.Post.View)]
@@ -135,3 +152,5 @@ public sealed record AddCommentRequest(
     Guid? ParentCommentId,
     string ContentHtml,
     IReadOnlyList<Guid>? MentionedEmployeeIds);
+
+public sealed record RecordViewsRequest(IReadOnlyList<Guid>? PostIds);

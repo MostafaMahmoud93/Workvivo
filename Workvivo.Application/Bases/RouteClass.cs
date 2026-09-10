@@ -62,6 +62,7 @@ public static class RouteClass
         public const string Create = "api/posts";
         public const string React = "api/posts/{postId:guid}/reactions";
         public const string State = "api/posts/{postId:guid}/state";
+        public const string Views = "api/posts/views";
     }
 
     public static class Comments
@@ -81,6 +82,75 @@ public static class RouteClass
         public const string UnreadCount = "api/notifications/unread-count";
         public const string MarkRead = "api/notifications/read";
         public const string Preferences = "api/notifications/preferences";
+    }
+
+    public static class Communities
+    {
+        public const string List = "api/communities";
+        public const string Save = "api/communities";
+        public const string Detail = "api/communities/{communityId:guid}";
+        public const string Members = "api/communities/{communityId:guid}/members";
+        public const string Join = "api/communities/{communityId:guid}/membership";
+        public const string Leave = "api/communities/{communityId:guid}/membership";
+        public const string Review = "api/communities/{communityId:guid}/members/{employeeId:guid}/review";
+        public const string Role = "api/communities/{communityId:guid}/members/{employeeId:guid}/role";
+        public const string Invite = "api/communities/{communityId:guid}/invitations";
+        public const string MyInvitations = "api/communities/invitations/mine";
+        public const string RespondToInvitation = "api/communities/invitations/{invitationId:guid}";
+    }
+
+    public static class RecognitionRoutes
+    {
+        public const string Types = "api/recognition/types";
+        public const string Wall = "api/recognition";
+        public const string Give = "api/recognition";
+        public const string Leaderboard = "api/recognition/leaderboard";
+    }
+
+    public static class Polls
+    {
+        public const string List = "api/polls";
+        public const string Save = "api/polls";
+        public const string Vote = "api/polls/{pollId:guid}/votes";
+    }
+
+    public static class Surveys
+    {
+        public const string List = "api/surveys";
+        public const string Detail = "api/surveys/{surveyId:guid}";
+        public const string Respond = "api/surveys/{surveyId:guid}/responses";
+        public const string Results = "api/surveys/{surveyId:guid}/results";
+    }
+
+    public static class Events
+    {
+        public const string List = "api/events";
+        public const string Save = "api/events";
+        public const string Rsvp = "api/events/{eventId:guid}/rsvp";
+    }
+
+    public static class Documents
+    {
+        public const string List = "api/documents";
+        public const string Categories = "api/documents/categories";
+        public const string Upload = "api/documents";
+        public const string Download = "api/documents/{documentId:guid}/content";
+    }
+
+    public static class SearchRoutes
+    {
+        public const string Search = "api/search";
+    }
+
+    public static class AnalyticsRoutes
+    {
+        public const string Dashboard = "api/analytics/dashboard";
+    }
+
+    public static class Admin
+    {
+        public const string Roles = "api/admin/roles";
+        public const string AuditLog = "api/admin/audit";
     }
 
     public static class OrganizationRoutes

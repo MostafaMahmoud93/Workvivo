@@ -1,0 +1,40 @@
+<section class="search">
+  <header class="search__head">
+    <h1>{{ text().search.heading }}</h1>
+    @if (q()) {
+      <p>{{ text().search.showingFor }} &ldquo;<span dir="auto">{{ q() }}</span>&rdquo;</p>
+    } @else {
+      <p>{{ text().search.prompt }}</p>
+    }
+  </header>
+
+  @if (isEmpty()) {
+    <p class="search__hint">{{ text().search.nothing }}</p>
+  }
+
+  @for (group of groups(); track group.label) {
+    <h2 class="search__group">{{ group.label }}</h2>
+
+    <ul class="search__list">
+      @for (item of group.items; track item.kind + item.id) {
+        <li class="hit">
+          <a [routerLink]="item.url">
+            <span class="hit__title" dir="auto">{{ item.title }}</span>
+
+            @if (item.subtitle) {
+              <span class="hit__subtitle" dir="auto">{{ item.subtitle }}</span>
+            }
+
+            @if (item.snippet) {
+              <span class="hit__snippet" dir="auto">{{ item.snippet }}</span>
+            }
+
+            @if (when(item); as date) {
+              <span class="hit__date">{{ date }}</span>
+            }
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</section>

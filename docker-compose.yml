@@ -1,0 +1,87 @@
+# Local and demo deployment.
+#
+# Not a production topology: the database runs in a container with a password in an
+# environment variable, and TLS is not terminated anywhere. Production means a
+# managed SQL instance, secrets from a vault, and an ingress in front - what this
+# file is for is running the whole product with one command.
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      # Supplied from the shell or a .env file, never committed. The compose file
+      # fails loudly if it is missing rather than falling back to something weak.
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?set MSSQL_SA_PASSWORD in your environment}
+      MSSQL_PID: Developer
+    ports:
+      - "1433:1433"
+    volumes:
+      - workvivo-db:/var/opt/mssql
+    healthcheck:
+      # The API waits for this. Without it the first start races the database and
+      # migrations fail on a connection that is not listening yet.
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q 'SELECT 1' || exit 1",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: 8080
+
+      # Double underscore is the separator for nested configuration keys, so this
+      # is ConnectionStrings:WorkvivoConnStr.
+      ConnectionStrings__WorkvivoConnStr: >-
+        Server=db,1433;Database=Workvivo;User Id=sa;Password=${MSSQL_SA_PASSWORD};
+        TrustServerCertificate=True;MultipleActiveResultSets=True
+
+      # Every secret comes from the environment. None has a default here, and the
+      # application refuses to start without them - which is the intended
+      # behaviour, not an inconvenience to work around.
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?set JWT_SIGNING_KEY, at least 32 characters}
+      Jwt__Issuer: ${JWT_ISSUER:-workvivo}
+      Jwt__Audience: ${JWT_AUDIENCE:-workvivo}
+      Anonymity__Key: ${ANONYMITY_KEY:?set ANONYMITY_KEY, at least 32 characters}
+
+      BackgroundJobs__Enabled: "true"
+      Cors__AllowedOrigins__0: ${PUBLIC_ORIGIN:-http://localhost:8080}
+      Email__Enabled: ${EMAIL_ENABLED:-false}
+      Email__Host: ${EMAIL_HOST:-}
+      Email__Username: ${EMAIL_USERNAME:-}
+      Email__Password: ${EMAIL_PASSWORD:-}
+      Email__FromAddress: ${EMAIL_FROM:-}
+      Email__ClientBaseUrl: ${PUBLIC_ORIGIN:-http://localhost:8080}
+      Storage__Provider: Local
+      Storage__LocalRootPath: /var/workvivo/uploads
+    volumes:
+      # Uploads outlive the container. Without this a deployment deletes every
+      # document anybody has published.
+      - workvivo-uploads:/var/workvivo/uploads
+    expose:
+      - "8080"
+
+  web:
+    build:
+      context: ./WorkvivoUI
+      dockerfile: Dockerfile
+    depends_on:
+      - api
+    ports:
+      - "8080:8080"
+
+volumes:
+  workvivo-db:
+  workvivo-uploads:

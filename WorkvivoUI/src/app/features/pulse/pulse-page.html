@@ -1,0 +1,211 @@
+<section class="pulse">
+  <header class="pulse__head">
+    <h1>{{ text().pulse.heading }}</h1>
+    <p>{{ text().pulse.lede }}</p>
+  </header>
+
+  @if (submitted()) {
+    <p class="pulse__ok">{{ text().pulse.thanks }}</p>
+  }
+
+  @if (error(); as message) {
+    <p class="pulse__error">{{ message }}</p>
+  }
+
+  @if (loading()) {
+    <p class="pulse__hint">{{ text().pulse.loading }}</p>
+  } @else if (isEmpty()) {
+    <p class="pulse__hint">{{ text().pulse.empty }}</p>
+  }
+
+  @if (openSurvey(); as survey) {
+    <article class="survey">
+      <header class="survey__head">
+        <div>
+          <h2 dir="auto">{{ survey.title }}</h2>
+          @if (survey.description) {
+            <p dir="auto">{{ survey.description }}</p>
+          }
+          @if (survey.isAnonymous) {
+            <!-- Stated plainly, because it changes what people are willing to say. -->
+            <p class="survey__anonymous">{{ text().pulse.anonymousNotice }}</p>
+          }
+        </div>
+
+        <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="close()">
+          {{ text().pulse.close }}
+        </button>
+      </header>
+
+      @for (question of survey.questions; track question.id) {
+        <fieldset class="question">
+          <legend dir="auto">
+            {{ question.text }}
+            @if (question.isRequired) {
+              <span class="question__required" aria-hidden="true">*</span>
+            }
+          </legend>
+
+          @if (question.helpText) {
+            <p class="question__help" dir="auto">{{ question.helpText }}</p>
+          }
+
+          @switch (question.questionType) {
+            @case (questionTypes.SingleChoice) {
+              <div class="question__choices">
+                @for (option of question.options; track option.id) {
+                  <label class="choice">
+                    <input
+                      type="radio"
+                      [name]="question.id"
+                      [checked]="chosen(question.id, option.id)"
+                      (change)="setChoice(question, option.id)"
+                    />
+                    <span dir="auto">{{ option.text }}</span>
+                  </label>
+                }
+              </div>
+            }
+
+            @case (questionTypes.Text) {
+              <textarea
+                rows="3"
+                dir="auto"
+                [value]="textFor(question.id)"
+                (input)="setText(question, $any($event.target).value)"
+              ></textarea>
+            }
+
+            @case (questionTypes.YesNo) {
+              <div class="question__scale">
+                <button
+                  type="button"
+                  [class.is-chosen]="numberFor(question.id) === 1"
+                  (click)="setNumber(question, 1)"
+                >
+                  {{ text().pulse.yes }}
+                </button>
+                <button
+                  type="button"
+                  [class.is-chosen]="numberFor(question.id) === 0"
+                  (click)="setNumber(question, 0)"
+                >
+                  {{ text().pulse.no }}
+                </button>
+              </div>
+            }
+
+            @default {
+              <div class="question__scale">
+                @for (point of scalePoints(question); track point) {
+                  <button
+                    type="button"
+                    [class.is-chosen]="numberFor(question.id) === point"
+                    (click)="setNumber(question, point)"
+                  >
+                    {{ point }}
+                  </button>
+                }
+              </div>
+
+              @if (question.minLabel || question.maxLabel) {
+                <div class="question__labels">
+                  <span dir="auto">{{ question.minLabel }}</span>
+                  <span dir="auto">{{ question.maxLabel }}</span>
+                </div>
+              }
+            }
+          }
+        </fieldset>
+      }
+
+      <footer class="survey__foot">
+        <button
+          type="button"
+          class="wv-btn wv-btn--primary"
+          [disabled]="submitting() || missingRequired() > 0"
+          (click)="submit()"
+        >
+          {{ submitting() ? text().pulse.submitting : text().pulse.submit }}
+        </button>
+
+        @if (missingRequired() > 0) {
+          <span class="survey__missing">
+            {{ missingRequired() }} {{ text().pulse.requiredRemaining }}
+          </span>
+        }
+      </footer>
+    </article>
+  }
+
+  @if (surveys().length > 0 && !openSurvey()) {
+    <h2 class="pulse__section">{{ text().pulse.surveys }}</h2>
+
+    <ul class="cards">
+      @for (survey of surveys(); track survey.id) {
+        <li class="card">
+          <div class="card__body">
+            <span class="card__title" dir="auto">{{ survey.title }}</span>
+            @if (survey.description) {
+              <span class="card__text" dir="auto">{{ survey.description }}</span>
+            }
+            <span class="card__meta">
+              {{ survey.questionCount }} {{ text().pulse.questions }}
+              @if (survey.isAnonymous) {
+                &middot; {{ text().pulse.anonymous }}
+              }
+            </span>
+          </div>
+
+          @if (survey.hasResponded && !survey.canRespond) {
+            <span class="card__done">{{ text().pulse.answered }}</span>
+          } @else if (survey.canRespond) {
+            <button type="button" class="wv-btn wv-btn--primary wv-btn--sm" (click)="start(survey)">
+              {{ text().pulse.start }}
+            </button>
+          }
+        </li>
+      }
+    </ul>
+  }
+
+  @if (polls().length > 0) {
+    <h2 class="pulse__section">{{ text().pulse.polls }}</h2>
+
+    @for (poll of polls(); track poll.id) {
+      <article class="poll">
+        <h3 dir="auto">{{ poll.question }}</h3>
+
+        @if (poll.isAnonymous) {
+          <p class="poll__anonymous">{{ text().pulse.anonymousNotice }}</p>
+        }
+
+        <ul class="poll__options">
+          @for (option of poll.options; track option.id) {
+            <li>
+              @if (poll.canVote) {
+                <button type="button" class="poll__vote" (click)="vote(poll, option.id)">
+                  <span dir="auto">{{ option.text }}</span>
+                </button>
+              } @else {
+                <div class="poll__result" [class.is-mine]="option.chosenByMe">
+                  <span class="poll__bar" [style.width.%]="share(poll, option)"></span>
+                  <span class="poll__label" dir="auto">{{ option.text }}</span>
+                  @if (poll.resultsVisible) {
+                    <span class="poll__count">{{ share(poll, option) }}%</span>
+                  }
+                </div>
+              }
+            </li>
+          }
+        </ul>
+
+        @if (poll.resultsVisible && poll.totalVotes !== null) {
+          <p class="poll__total">{{ poll.totalVotes }} {{ text().pulse.votes }}</p>
+        } @else if (!poll.canVote) {
+          <p class="poll__total">{{ text().pulse.resultsHidden }}</p>
+        }
+      </article>
+    }
+  }
+</section>

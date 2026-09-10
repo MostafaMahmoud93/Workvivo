@@ -1,0 +1,131 @@
+<section class="admin">
+  <header class="admin__head">
+    <h1>{{ text().admin.heading }}</h1>
+    <p>{{ text().admin.lede }}</p>
+  </header>
+
+  <nav class="admin__tabs" role="tablist">
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="tab() === 'roles'"
+      [class.is-active]="tab() === 'roles'"
+      (click)="setTab('roles')"
+    >
+      {{ text().admin.roles }}
+    </button>
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="tab() === 'audit'"
+      [class.is-active]="tab() === 'audit'"
+      (click)="setTab('audit')"
+    >
+      {{ text().admin.audit }}
+    </button>
+  </nav>
+
+  @if (failed()) {
+    <p class="admin__hint admin__hint--error">{{ text().admin.loadFailed }}</p>
+  } @else if (loading()) {
+    <p class="admin__hint">{{ text().admin.loading }}</p>
+  } @else if (tab() === 'roles') {
+    <table class="grid">
+      <thead>
+        <tr>
+          <th>{{ text().admin.role }}</th>
+          <th>{{ text().admin.members }}</th>
+          <th>{{ text().admin.permissions }}</th>
+          <th>{{ text().admin.kind }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (role of roles(); track role.id) {
+          <tr>
+            <td>
+              <span class="grid__strong">{{ role.name }}</span>
+              @if (role.description) {
+                <span class="grid__sub" dir="auto">{{ role.description }}</span>
+              }
+            </td>
+            <td>{{ role.memberCount }}</td>
+            <td>{{ role.permissionCount }}</td>
+            <td>
+              {{ role.isSystem ? text().admin.system : text().admin.custom }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  } @else {
+    <form class="admin__filter" (submit)="$event.preventDefault(); loadAudit(1)">
+      <input
+        type="search"
+        name="entity"
+        [attr.aria-label]="text().admin.filterByEntity"
+        [placeholder]="text().admin.filterByEntity"
+        [ngModel]="entityFilter()"
+        (ngModelChange)="entityFilter.set($event)"
+      />
+      <button type="submit" class="wv-btn wv-btn--quiet wv-btn--sm">
+        {{ text().admin.apply }}
+      </button>
+    </form>
+
+    <table class="grid">
+      <thead>
+        <tr>
+          <th>{{ text().admin.when }}</th>
+          <th>{{ text().admin.who }}</th>
+          <th>{{ text().admin.action }}</th>
+          <th>{{ text().admin.entity }}</th>
+          <th>{{ text().admin.changed }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (entry of audit(); track entry.id) {
+          <tr>
+            <td class="grid__nowrap">{{ when(entry.timestamp) }}</td>
+            <td>{{ entry.username ?? '-' }}</td>
+            <td>{{ entry.action }}</td>
+            <td>
+              <span class="grid__strong">{{ entry.entityName ?? '-' }}</span>
+              @if (entry.entityId) {
+                <span class="grid__sub">{{ entry.entityId }}</span>
+              }
+            </td>
+            <td class="grid__sub">{{ entry.affectedColumns ?? '-' }}</td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="5" class="admin__hint">{{ text().admin.noEntries }}</td>
+          </tr>
+        }
+      </tbody>
+    </table>
+
+    @if (totalPages() > 1) {
+      <div class="admin__pager">
+        <button
+          type="button"
+          class="wv-btn wv-btn--quiet wv-btn--sm"
+          [disabled]="page() <= 1"
+          (click)="loadAudit(page() - 1)"
+        >
+          {{ text().admin.previous }}
+        </button>
+
+        <span>{{ page() }} / {{ totalPages() }}</span>
+
+        <button
+          type="button"
+          class="wv-btn wv-btn--quiet wv-btn--sm"
+          [disabled]="page() >= totalPages()"
+          (click)="loadAudit(page() + 1)"
+        >
+          {{ text().admin.next }}
+        </button>
+      </div>
+    }
+  }
+</section>

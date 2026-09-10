@@ -1,6 +1,8 @@
-using Hangfire;
+﻿using Hangfire;
 using Hangfire.Dashboard;
+using Workvivo.Application.Features.Events.Jobs;
 using Workvivo.Application.Features.Notifications.Jobs;
+using Workvivo.Application.Features.Recognition.Jobs;
 using Workvivo.Domain.Abstractions.Enums;
 using Workvivo.Domain.Abstractions.Interfaces;
 
@@ -41,6 +43,21 @@ public static class ConfigureBackgroundJobs
             "feed:reconcile-counters",
             job => job.ReconcileAsync(),
             "30 2 * * *");
+
+        // Hourly. The leaderboard is read constantly and changes slowly, which is
+        // exactly the shape that justifies precomputing it.
+        scheduler.AddOrUpdateRecurring<ILeaderboardSnapshotJob>(
+            "recognition:rebuild-leaderboard",
+            job => job.RebuildAsync(),
+            "15 * * * *");
+
+        // Every fifteen minutes. The reminder window is a day wide, so this is about
+        // being reliable rather than punctual - and the sent stamp makes a repeat
+        // harmless.
+        scheduler.AddOrUpdateRecurring<IEventReminderJob>(
+            "events:send-reminders",
+            job => job.SendDueAsync(),
+            "*/15 * * * *");
 
         scheduler.AddOrUpdateRecurring<INotificationDigestJob>(
             "notifications:digest-hourly",

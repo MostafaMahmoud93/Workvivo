@@ -4,6 +4,7 @@ using Workvivo.Domain.Entities.BaseEntities;
 using Workvivo.Domain.Entities.Documents;
 using Workvivo.Domain.Entities.Feed;
 using Workvivo.Domain.Entities.Organization;
+using Workvivo.Domain.Events;
 
 namespace Workvivo.Domain.Entities.Recognition;
 
@@ -44,5 +45,20 @@ public class Recognition : AuditableEntity<Guid>
         {
             throw new InvalidOperationException("An employee cannot recognise themselves.");
         }
+    }
+
+    /// <summary>
+    /// Records that this recognition happened, so the recipient can be told.
+    ///
+    /// Also the invariant's last line of defence: raising the event runs the
+    /// self-recognition check, so an event can never describe something the domain
+    /// forbids even if a caller skipped the check.
+    /// </summary>
+    public void RecordGiven(DateTime occurredOnUtc)
+    {
+        EnsureNotSelfRecognition(Sender_Employee_Id, Recipient_Employee_Id);
+
+        Raise(new RecognitionGivenDomainEvent(
+            Id, Sender_Employee_Id, Recipient_Employee_Id, Points, occurredOnUtc));
     }
 }

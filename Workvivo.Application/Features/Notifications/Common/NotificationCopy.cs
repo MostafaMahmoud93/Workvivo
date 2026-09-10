@@ -53,6 +53,40 @@ public static class NotificationCopy
         ContentAr: Excerpt(excerpt),
         ContentEn: Excerpt(excerpt));
 
+    public static Text EventStartingSoon(string title, DateTime startsAtUtc) => new(
+        HeaderAr: $"يبدأ قريبًا: {title}",
+        HeaderEn: $"Starting soon: {title}",
+
+        // The instant, formatted by the reader's client rather than here. A server
+        // that renders a local time has to guess a timezone, and it guesses wrong for
+        // most of a company spread across offices.
+        ContentAr: startsAtUtc.ToString("O"),
+        ContentEn: startsAtUtc.ToString("O"));
+
+    public static Text RecognisedYou(string actor, string category, string message) => new(
+        HeaderAr: $"كرّمك {actor}",
+        HeaderEn: $"{actor} recognised you",
+        ContentAr: $"{category} - {Excerpt(message)}",
+        ContentEn: $"{category} - {Excerpt(message)}");
+
+    public static Text AskedToJoinYourCommunity(string actor, string community) => new(
+        HeaderAr: $"طلب {actor} الانضمام إلى {community}",
+        HeaderEn: $"{actor} asked to join {community}",
+        ContentAr: "بانتظار مراجعتك",
+        ContentEn: "Waiting for your review");
+
+    public static Text YourMembershipWasApproved(string community) => new(
+        HeaderAr: $"تمت الموافقة على انضمامك إلى {community}",
+        HeaderEn: $"You have joined {community}",
+        ContentAr: "يمكنك الآن المشاركة في المجتمع",
+        ContentEn: "You can now post and take part");
+
+    public static Text InvitedYouToACommunity(string actor, string community) => new(
+        HeaderAr: $"دعاك {actor} للانضمام إلى {community}",
+        HeaderEn: $"{actor} invited you to {community}",
+        ContentAr: string.Empty,
+        ContentEn: string.Empty);
+
     /// <summary>
     /// Trims quoted user content to something that fits a notification row.
     ///
@@ -110,4 +144,12 @@ public static class NotificationLinks
     public static string Comment(Guid postId, Guid commentId) => $"/feed/{postId:D}?comment={commentId:D}";
 
     public static string Employee(Guid employeeId) => $"/employees/{employeeId:D}";
+
+    public static string Community(Guid communityId) => $"/communities/{communityId:D}";
+
+    public static string Recognition(Guid recognitionId) => $"/recognition?highlight={recognitionId:D}";
+
+    public static string Event(Guid eventId) => $"/events?highlight={eventId:D}";
+
+    public static string CommunityMembers(Guid communityId) => $"/communities/{communityId:D}/members";
 }

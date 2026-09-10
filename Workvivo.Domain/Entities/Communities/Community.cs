@@ -4,6 +4,7 @@ using Workvivo.Domain.Entities.BaseEntities;
 using Workvivo.Domain.Entities.Documents;
 using Workvivo.Domain.Entities.Feed;
 using Workvivo.Domain.Entities.Organization;
+using Workvivo.Domain.Events;
 
 namespace Workvivo.Domain.Entities.Communities;
 
@@ -65,4 +66,31 @@ public class Community : AuditableEntity<Guid>
 
     /// <summary>Whether joining needs a moderator to approve it.</summary>
     public bool RequiresApprovalToJoin => Privacy != CommunityPrivacy.Public;
+
+    /// <summary>
+    /// Records that somebody asked to join, so the moderators can be told.
+    ///
+    /// A method on the aggregate rather than a handler calling <c>Raise</c> directly,
+    /// which is protected on purpose: the set of things that can happen to a community
+    /// should be readable from the community, not scattered across whichever handlers
+    /// happened to need an event.
+    /// </summary>
+    public void RecordJoinRequested(Guid requesterEmployeeId, DateTime occurredOnUtc) =>
+        Raise(new CommunityJoinRequestedDomainEvent(Id, requesterEmployeeId, occurredOnUtc));
+
+    /// <summary>Records that a pending membership was approved, so the member can be told.</summary>
+    public void RecordMembershipApproved(
+        Guid memberEmployeeId,
+        Guid reviewerEmployeeId,
+        DateTime occurredOnUtc) =>
+        Raise(new CommunityMembershipApprovedDomainEvent(
+            Id, memberEmployeeId, reviewerEmployeeId, occurredOnUtc));
+
+    /// <summary>Records that somebody was invited.</summary>
+    public void RecordInvitationSent(
+        Guid invitedEmployeeId,
+        Guid invitedByEmployeeId,
+        DateTime occurredOnUtc) =>
+        Raise(new CommunityInvitationSentDomainEvent(
+            Id, invitedEmployeeId, invitedByEmployeeId, occurredOnUtc));
 }

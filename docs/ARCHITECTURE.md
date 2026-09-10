@@ -1976,3 +1976,257 @@ publishing on its own and notifying the person it mentioned.
 - **`Feed_PostViews` is still written by nothing**, so announcement reach is not
   measurable. Analytics is Phase 14.
 - **No retention job.** Notification rows accumulate forever.
+
+## Appendix J — Phases 8 to 17
+
+Communities, recognition, polls and surveys, events, documents, search, analytics,
+administration, a hardening pass, and deployment.
+
+The schema for all of this landed in Phase 1 (`AddPlatformDomain`, 76 tables), so
+these phases are overwhelmingly application, API and client layers over tables that
+already existed with their indexes and constraints. Only one migration was needed
+across the ten, and that was in Phase 7.
+
+### The pattern every feature follows
+
+By Phase 8 the shape had settled, and each later feature is a variation on it rather
+than a new invention:
+
+1. **Audience filtering is the same everywhere.** Posts, polls, surveys, events,
+   documents and search all resolve the viewer's key set through `IAudienceResolver`
+   and apply one indexed `EXISTS`. Six features, one rule. Where a feature has its
+   own visibility concept on top - a community's privacy, a recognition's
+   visibility, a poll's results - that sits *above* the audience filter rather than
+   replacing it.
+2. **Authorisation that depends on the row lives in a class, not an attribute.**
+   `PostAuthorization` and `CommunityAuthorization` answer "may this person act on
+   *this* thing", which no endpoint attribute can express.
+3. **Denormalised counters move with `ExecuteUpdateAsync`,** and only when the state
+   actually crossed the line being counted. The reconciliation job from Phase 7
+   covers the drift.
+4. **Anything that leaves the process is queued, never awaited in the request.**
+
+### Communities (8)
+
+`CommunityAccess` computes six answers from a community and one membership row:
+`CanRead`, `CanDiscover`, `CanModerate`, `CanManage`, `CanPost`, `CanRequestToJoin`.
+The distinctions matter and are individually tested:
+
+- **Restricted is discoverable but not readable** - listed and described so somebody
+  can decide to ask, with the content closed. Collapsing this into "is it private?"
+  either hides a group that wants members or exposes one that does not.
+- **Reading is not posting.** A public community is readable by everybody and
+  postable only by members.
+- **Role and status are separate axes.** A moderator whose membership is Pending
+  moderates nothing.
+- **Only the owner appoints moderators.** A moderator who could would appoint an
+  accomplice.
+
+Joining, leaving, approving and being invited all invalidate the joiner's cached
+audience key set. Without that, somebody who has just joined sees an empty community
+feed for up to ten minutes and concludes the join failed.
+
+`CommunitySlug` is domain code with tests because it has to survive bilingual names
+and arbitrary punctuation, and because a slug is a permanent link - it is
+deliberately *not* regenerated on rename.
+
+### Recognition (9)
+
+Points come from the category, never from the sender - a sender who named their own
+number would be deciding the leaderboard. Self-recognition is refused in three
+places: the handler, the aggregate's `RecordGiven`, and a check constraint.
+
+Public recognition creates a real feed `Post` rather than a special row, so it gets
+reactions, comments, audience targeting and notification fan-out for free, and the
+feed query never learns about a second kind of content.
+
+The leaderboard is precomputed hourly into `Rec_LeaderboardSnapshots`. Ranking every
+employee by points over a date range is a scan plus a sort, and it sits on the home
+page - it would be the most expensive query in the product, run most often, to
+produce an answer that changes hourly at most. Ties share a rank and the next one
+skips. Private recognition is excluded from the ranking: a leaderboard is public by
+definition, so counting it would publish through the totals exactly what the sender
+chose to keep private.
+
+`LeaderboardWindow` is domain code because the job that writes snapshots and the
+query that reads them must agree about what a period covers. A day's disagreement
+shows the previous period's board with no error anywhere.
+
+### Polls and surveys (10)
+
+Two products, deliberately not merged: a poll is one question in the feed, a survey
+is an instrument with required questions and exportable results.
+
+**Anonymity is enforced, not promised.** `IAnonymityHasher` produces an HMAC-SHA256
+of `(scope, employee)` under a server key that never reaches the database. That
+gives one-response-per-person without recording who responded, and it survives a
+database copy - a plain SHA-256 of the employee id would not, since an attacker with
+the table and a staff list recovers every voter in seconds. The scope is in the
+message so the same person is a different token in every instrument; without it one
+leaked mapping would deanonymise them everywhere. The application refuses to start
+without a 32-character key.
+
+Results are hidden until you vote, unless the poll says otherwise or has closed -
+`PollProjection`, one place, because the rule changes how people vote and is applied
+in three. Withheld tallies are `null`, not `0`, so a client cannot render "0 votes"
+by mistake.
+
+Survey verbatims are withheld below five responses. A free-text comment identifies
+its author far more often than a tick-box does; the counts still appear, because a
+count of four cannot be traced to anybody. There is no endpoint anywhere that returns
+individual responses.
+
+### Events (11)
+
+The joining link is withheld from anybody who is not attending. An open meeting link
+is an open meeting, and it is the one field on an event that is genuinely a
+credential. RSVP re-checks the audience on the write path, because an event id is
+guessable and an RSVP is how somebody would obtain that link.
+
+Capacity is checked only for somebody joining - changing from Attending to Declined
+on a full event has to work, or the only way out of a full event is to stay in it.
+
+Reminders go only to people who said they are coming, and `Reminder_Sent_At` is
+stamped whether or not anybody was attending, so a retry cannot remind twice and an
+event with no takers is not re-examined every minute until it starts.
+
+### Documents (12)
+
+The only feature that moves bytes. Three decisions carry it:
+
+- **Scanned before stored, not after.** A file written first exists in the store,
+  however briefly, and any bug between the two leaves it there behind nothing but an
+  authorisation check.
+- **The content type comes from the bytes,** never from what the client declared -
+  and downloads are always `Content-Disposition: attachment`, so an HTML file that
+  slipped through cannot run as a page on this origin.
+- **Entitlement is re-evaluated when the bytes are served,** not only when the list
+  is built. A link issued while somebody was in Finance stops working when they
+  leave it. Not entitled reads as 404: confirming that "Redundancy plan Q3" exists is
+  most of the disclosure.
+
+Downloads are logged per version, because "who has read the *new* policy" is a
+different question from "who has read the policy", and only the version answers the
+first.
+
+### Search (13)
+
+The one place that reaches into every table at once, and therefore the place content
+leaks. Every branch applies the owning feature's rule: posts and documents and events
+by audience keys, communities by the Private-is-invisible rule, employees by the
+directory's own openness. Post search runs against `Content_Text`, not
+`Content_Html` - searching markup matches tag names, so a term like "span" would
+return the whole feed.
+
+LIKE over indexed columns rather than full-text: honest about what it is, and needs
+no catalogue to provision or keep in sync. The seam for full-text or an external
+index is this one class.
+
+### Analytics (14)
+
+`Feed_PostViews` is finally written, closing the last gap from Phase 6. Views are
+reported one batch per screenful - the highest-volume write in the product - and the
+denormalised counter increments only on a *first* view, so "reach" means distinct
+readers.
+
+Every figure is aggregate. There is no per-employee activity report and there is not
+going to be one: a tool that tells a manager who has not posted this week changes
+what an internal network is for, and people stop using it honestly.
+
+### Administration (15)
+
+Roles and the audit log, each behind its own permission rather than one for the
+controller - an auditor who can read the log should not thereby be able to grant
+themselves anything. The audit log is read-only and has no write or delete endpoint,
+because a log an administrator can edit is not a log. Old and new values are not
+projected into the paged list: they are JSON of arbitrary content, and a list is not
+where salaries should be rendered by default.
+
+### The hardening pass (16), and what it found
+
+An architecture test now walks every MediatR handler and fails unless it either
+injects something that makes an authorisation decision or appears in a documented
+exemption list with a reason. A second test fails when an exemption outlives its
+handler, so the list cannot rot into a blanket excuse. This exists because of a
+specific mistake that already happened once here: an endpoint shipped with its
+permission filter commented out, and nothing failed.
+
+It found four real defects.
+
+**1. Voting was not audience-checked.** `CastVoteCommand` verified the poll was open
+and the options belonged to it, but never that the caller was in its audience. A poll
+id is guessable, so anybody could vote in another department's poll and skew a result
+they were never meant to see. The listing query had the filter; the write path did
+not.
+
+**2. Post views were not audience-checked either.** The same shape, and it corrupts
+the number the whole table exists to produce: reach could be inflated for any post by
+naming its id.
+
+**3. Department-scoped recognition was on the company-wide wall.** The reasoning at
+the time was that its feed post carried the audience - but the wall is a second way
+to read the same thing, and "visible to their department" has to mean that everywhere
+or it means nothing.
+
+**4. Search escaped LIKE two contradictory ways at once.** Terms were bracket-quoted
+(`[%]`) *and* `ESCAPE '['` was declared. The two schemes cannot be combined: under
+that escape character `[%` is a literal percent sign and the trailing `]` is a
+literal bracket, so a search for "50%" became a search for "50%]" and matched
+nothing. Nothing threw; the results were simply wrong for any term containing a
+wildcard - the kind of failure nobody reports as a bug, they just decide the search
+is bad. Now `LikePattern` in the domain, with the escape character declared once and
+tested.
+
+### Deployment (17)
+
+Multi-stage Dockerfiles for both halves - the API image carries no SDK, no source and
+no NuGet cache; the web image carries no Node and no `node_modules`. Both run
+unprivileged, which is why they listen on 8080.
+
+`docker-compose.yml` runs the product with one command and is explicit about not
+being a production topology. Every secret is required with no default: the compose
+file fails loudly rather than falling back to something weak, which matches the
+application refusing to start without a signing key or an anonymity key.
+
+There is deliberately **no `HEALTHCHECK`** in the API image. The runtime image has no
+curl, and the usual `dotnet --info` workaround passes whether or not the application
+is serving anything - a probe that always succeeds is worse than none, because it
+makes an orchestrator confident about a container failing every request. The two real
+probes are documented for the orchestrator instead.
+
+CI runs each test project as an executable rather than `dotnet test` across the
+solution, which reports "Zero tests ran" with xunit.v3 on Microsoft.Testing.Platform -
+the worst possible failure mode, a green pipeline that ran nothing. It also fails the
+build on a package with a known vulnerability, which can start failing on a branch
+nobody has touched. That is the point.
+
+### Final state
+
+- **307 backend tests** and **26 Angular tests**, all passing. Solution builds with
+  zero errors and zero warnings.
+- Seventeen phases, one migration across the last ten, and a schema that has not
+  needed reshaping since Phase 1.
+
+### What is not built
+
+Stated plainly rather than left to be discovered:
+
+- **The Docker images have not been built.** The compose file parses, but no Docker
+  daemon was available in this environment, so the Dockerfiles are unverified by
+  execution.
+- **Notification aggregation.** Twenty reactions is twenty notifications.
+- **Mobile push.** The preference column exists and defaults to off.
+- **Full-text search.** LIKE over indexed columns, as described above.
+- **Community and event *authoring* screens.** The APIs are complete and permission-
+  gated; the client offers joining, RSVP and moderation, not creation.
+- **Survey authoring.** Same - the API creates and the seeder demonstrates it, but
+  there is no builder UI.
+- **Attachments on posts,** and the mention-picker in the composer. The APIs store
+  and return both.
+- **Integration tests.** The project is scaffolded and empty. Rules enforced by the
+  database - unique indexes, check constraints, `ExecuteUpdate` - cannot be covered
+  by the unit suite, and `TestAsyncQueryable` is deliberately honest about not
+  modelling them.
+- **The SMTP credential in git history still needs rotating.**
+- **AutoMapper 16 is commercially licensed.** No new profiles were added; every
+  feature from Phase 6 onwards projects explicitly with `Select`.

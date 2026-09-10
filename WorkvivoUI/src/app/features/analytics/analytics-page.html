@@ -1,0 +1,83 @@
+<section class="analytics">
+  <header class="analytics__head">
+    <div>
+      <h1>{{ text().analytics.heading }}</h1>
+      <p>{{ text().analytics.lede }}</p>
+    </div>
+
+    <div class="analytics__windows" role="tablist">
+      @for (option of windows; track option) {
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="days() === option"
+          [class.is-active]="days() === option"
+          (click)="setDays(option)"
+        >
+          {{ option }}{{ text().analytics.dayShort }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (loading()) {
+    <p class="analytics__hint">{{ text().analytics.loading }}</p>
+  } @else if (failed()) {
+    <p class="analytics__hint analytics__hint--error">{{ text().analytics.loadFailed }}</p>
+  } @else if (dashboard(); as data) {
+    <ul class="tiles">
+      @for (metric of data.metrics; track metric.key) {
+        <li class="tile">
+          <span class="tile__value">{{ metric.value }}</span>
+          <span class="tile__label">{{ metricLabel(metric.key) }}</span>
+
+          @if (change(metric); as delta) {
+            <span class="tile__change" [class.is-down]="delta < 0">
+              {{ delta > 0 ? '+' : '' }}{{ delta }}%
+            </span>
+          }
+        </li>
+      }
+    </ul>
+
+    <h2 class="analytics__section">{{ text().analytics.activity }}</h2>
+
+    @if (data.activity.length === 0) {
+      <p class="analytics__hint">{{ text().analytics.noActivity }}</p>
+    } @else {
+      <div class="chart" role="img" [attr.aria-label]="text().analytics.activity">
+        @for (point of data.activity; track point.date) {
+          <div class="chart__col" [title]="day(point.date)">
+            <span class="chart__bar chart__bar--reactions" [style.height.%]="height(point.reactions)"></span>
+            <span class="chart__bar chart__bar--comments" [style.height.%]="height(point.comments)"></span>
+            <span class="chart__bar chart__bar--posts" [style.height.%]="height(point.posts)"></span>
+          </div>
+        }
+      </div>
+
+      <div class="chart__legend">
+        <span><i class="chart__swatch chart__swatch--posts"></i>{{ text().analytics.metrics.posts }}</span>
+        <span><i class="chart__swatch chart__swatch--comments"></i>{{ text().analytics.metrics.comments }}</span>
+        <span><i class="chart__swatch chart__swatch--reactions"></i>{{ text().analytics.metrics.reactions }}</span>
+      </div>
+    }
+
+    <h2 class="analytics__section">{{ text().analytics.topPosts }}</h2>
+
+    @if (data.topPosts.length === 0) {
+      <p class="analytics__hint">{{ text().analytics.noPosts }}</p>
+    } @else {
+      <ul class="top">
+        @for (post of data.topPosts; track post.id) {
+          <li class="top__row">
+            <span class="top__title" dir="auto">{{ post.title }}</span>
+            <span class="top__author" dir="auto">{{ post.authorDisplayName }}</span>
+            <span class="top__stat">{{ post.views }} {{ text().analytics.views }}</span>
+            <span class="top__stat">{{ post.reactions }} {{ text().analytics.reactions }}</span>
+            <span class="top__stat">{{ post.comments }} {{ text().analytics.comments }}</span>
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

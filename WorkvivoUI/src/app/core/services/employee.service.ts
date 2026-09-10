@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable, map, shareReplay } from 'rxjs';
+import { Observable, map, of, shareReplay } from 'rxjs';
 
 import { environment } from '../../../environments/environment';
 import { ServiceResponse } from '../models/service-response';
@@ -10,6 +10,7 @@ import {
   EmployeeProfile,
   OrganizationLookups,
   PagedResult,
+  PersonSummary,
 } from '../models/employee';
 
 @Injectable({ providedIn: 'root' })
@@ -39,6 +40,25 @@ export class EmployeeService {
 
     return this.http
       .get<ServiceResponse<PagedResult<EmployeeListItem>>>(this.base + '/employees', { params })
+      .pipe(map((response) => response.data));
+  }
+
+  /**
+   * Type-ahead over the directory.
+   *
+   * Returns nothing below two characters rather than asking - the server refuses a
+   * one-letter term anyway, and a request that is guaranteed to come back empty is
+   * a request worth not making.
+   */
+  suggest(term: string, limit = 8): Observable<PersonSummary[]> {
+    if (term.trim().length < 2) {
+      return of([]);
+    }
+
+    const params = new HttpParams().set('term', term.trim()).set('limit', limit);
+
+    return this.http
+      .get<ServiceResponse<PersonSummary[]>>(this.base + '/employees/suggest', { params })
       .pipe(map((response) => response.data));
   }
 

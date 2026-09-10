@@ -1,0 +1,177 @@
+@if (loading()) {
+  <p class="community__hint">{{ text().communities.loading }}</p>
+} @else if (failed() || !community()) {
+  <p class="community__hint community__hint--error">{{ text().communities.notFound }}</p>
+} @else if (community(); as item) {
+  <article class="community">
+    <header class="community__header">
+      <app-avatar [name]="item.name" [size]="64" />
+
+      <div class="community__identity">
+        <h1 dir="auto">{{ item.name }}</h1>
+
+        <p class="community__meta">
+          {{ privacyLabel(item.privacy) }}
+          &middot; {{ item.membersCount }} {{ text().communities.members }}
+          &middot; {{ item.postsCount }} {{ text().communities.posts }}
+        </p>
+
+        @if (item.description) {
+          <p class="community__description" dir="auto">{{ item.description }}</p>
+        }
+      </div>
+
+      <div class="community__actions">
+        @if (item.myMembershipStatus === status.Approved) {
+          @if (!item.canManage) {
+            <button
+              type="button"
+              class="wv-btn wv-btn--quiet wv-btn--sm"
+              [disabled]="busy()"
+              (click)="leave()"
+            >
+              {{ text().communities.leave }}
+            </button>
+          }
+        } @else if (item.myMembershipStatus === status.Pending) {
+          <span class="community__pending">{{ text().communities.pending }}</span>
+        } @else if (item.canJoin) {
+          <button
+            type="button"
+            class="wv-btn wv-btn--primary wv-btn--sm"
+            [disabled]="busy()"
+            (click)="join()"
+          >
+            {{
+              item.privacy === privacy.Public
+                ? text().communities.join
+                : text().communities.requestToJoin
+            }}
+          </button>
+        }
+      </div>
+    </header>
+
+    @if (!item.canRead) {
+      <!-- Restricted: listed and described, but the content is not open. Saying so
+           is better than an empty page that reads as a bug. -->
+      <p class="community__hint">{{ text().communities.restrictedNotice }}</p>
+    } @else {
+      <nav class="community__tabs" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          [attr.aria-selected]="tab() === 'members'"
+          [class.is-active]="tab() === 'members'"
+          (click)="setTab('members')"
+        >
+          {{ text().communities.members }}
+        </button>
+
+        @if (item.canModerate) {
+          <button
+            type="button"
+            role="tab"
+            [attr.aria-selected]="tab() === 'requests'"
+            [class.is-active]="tab() === 'requests'"
+            (click)="setTab('requests')"
+          >
+            {{ text().communities.requests }}
+            @if (item.pendingRequestsCount > 0) {
+              <span class="community__count">{{ item.pendingRequestsCount }}</span>
+            }
+          </button>
+        }
+      </nav>
+
+      @if (tab() === 'members') {
+        <ul class="community__people">
+          @for (member of members(); track member.employeeId) {
+            <li class="person">
+              <a class="person__main" [routerLink]="['/employees', member.employeeId]">
+                <app-avatar [name]="member.displayName" [size]="36" />
+                <span class="person__text">
+                  <span class="person__name" dir="auto">{{ member.displayName }}</span>
+                  @if (member.jobTitle) {
+                    <span class="person__title" dir="auto">{{ member.jobTitle }}</span>
+                  }
+                </span>
+              </a>
+
+              <span class="person__role">{{ roleLabel(member.role) }}</span>
+
+              @if (item.canManage && member.role !== roles.Owner) {
+                <span class="person__controls">
+                  @if (member.role === roles.Member) {
+                    <button
+                      type="button"
+                      class="wv-btn wv-btn--quiet wv-btn--sm"
+                      (click)="setRole(member, roles.Moderator)"
+                    >
+                      {{ text().communities.promote }}
+                    </button>
+                  } @else {
+                    <button
+                      type="button"
+                      class="wv-btn wv-btn--quiet wv-btn--sm"
+                      (click)="setRole(member, roles.Member)"
+                    >
+                      {{ text().communities.demote }}
+                    </button>
+                  }
+                </span>
+              }
+
+              @if (item.canModerate && member.role !== roles.Owner) {
+                <button
+                  type="button"
+                  class="wv-btn wv-btn--quiet wv-btn--sm"
+                  (click)="review(member, 'Remove')"
+                >
+                  {{ text().communities.remove }}
+                </button>
+              }
+            </li>
+          } @empty {
+            <li class="community__hint">{{ text().communities.noMembers }}</li>
+          }
+        </ul>
+      } @else {
+        <ul class="community__people">
+          @for (member of pending(); track member.employeeId) {
+            <li class="person">
+              <span class="person__main">
+                <app-avatar [name]="member.displayName" [size]="36" />
+                <span class="person__text">
+                  <span class="person__name" dir="auto">{{ member.displayName }}</span>
+                  @if (member.jobTitle) {
+                    <span class="person__title" dir="auto">{{ member.jobTitle }}</span>
+                  }
+                </span>
+              </span>
+
+              <span class="person__controls">
+                <button
+                  type="button"
+                  class="wv-btn wv-btn--primary wv-btn--sm"
+                  (click)="review(member, 'Approve')"
+                >
+                  {{ text().communities.approve }}
+                </button>
+                <button
+                  type="button"
+                  class="wv-btn wv-btn--quiet wv-btn--sm"
+                  (click)="review(member, 'Reject')"
+                >
+                  {{ text().communities.reject }}
+                </button>
+              </span>
+            </li>
+          } @empty {
+            <li class="community__hint">{{ text().communities.noRequests }}</li>
+          }
+        </ul>
+      }
+    }
+  </article>
+}

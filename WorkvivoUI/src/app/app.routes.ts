@@ -53,6 +53,65 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'admin',
+        title: 'Administration - Workvivo',
+        canActivate: [permissionGuard('Role.Manage')],
+        loadComponent: () => import('./features/admin/admin-page').then((m) => m.AdminPage),
+      },
+      {
+        path: 'analytics',
+        title: 'Analytics - Workvivo',
+        canActivate: [permissionGuard('Analytics.View')],
+        loadComponent: () =>
+          import('./features/analytics/analytics-page').then((m) => m.AnalyticsPage),
+      },
+      {
+        // ?q= binds straight to the component's input, so the URL is the state and a
+        // search result page can be shared or bookmarked.
+        path: 'search',
+        title: 'Search - Workvivo',
+        loadComponent: () => import('./features/search/search-page').then((m) => m.SearchPage),
+      },
+      {
+        path: 'documents',
+        title: 'Documents - Workvivo',
+        canActivate: [permissionGuard('Document.View')],
+        loadComponent: () =>
+          import('./features/documents/documents-page').then((m) => m.DocumentsPage),
+      },
+      {
+        path: 'events',
+        title: 'Events - Workvivo',
+        loadComponent: () => import('./features/events/events-page').then((m) => m.EventsPage),
+      },
+      {
+        path: 'pulse',
+        title: 'Polls and surveys - Workvivo',
+        loadComponent: () => import('./features/pulse/pulse-page').then((m) => m.PulsePage),
+      },
+      {
+        path: 'recognition',
+        title: 'Recognition - Workvivo',
+        loadComponent: () =>
+          import('./features/recognition/recognition-page').then((m) => m.RecognitionPage),
+      },
+      {
+        path: 'communities',
+        title: 'Communities - Workvivo',
+        loadComponent: () =>
+          import('./features/communities/community-list/community-list').then(
+            (m) => m.CommunityList,
+          ),
+      },
+      {
+        path: 'communities/:communityId',
+        title: 'Community - Workvivo',
+        loadComponent: () =>
+          import('./features/communities/community-detail/community-detail').then(
+            (m) => m.CommunityDetailPage,
+          ),
+      },
+      {
         // No permission guard: every employee manages their own notifications, and
         // gating that behind a grantable permission would let a misconfigured role
         // switch somebody's bell off with no way for them to turn it back on.

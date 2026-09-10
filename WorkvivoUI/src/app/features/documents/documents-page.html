@@ -1,0 +1,90 @@
+<section class="documents">
+  <header class="documents__head">
+    <h1>{{ text().documents.heading }}</h1>
+    <p>{{ text().documents.lede }}</p>
+  </header>
+
+  <div class="documents__layout">
+    <aside class="documents__categories">
+      <button
+        type="button"
+        [class.is-active]="categoryId() === null"
+        (click)="choose(null)"
+      >
+        {{ text().documents.all }}
+      </button>
+
+      @for (category of categories(); track category.id) {
+        <button
+          type="button"
+          [class.is-active]="categoryId() === category.id"
+          (click)="choose(category.id)"
+        >
+          <span dir="auto">{{ category.name }}</span>
+          <span class="documents__count">{{ category.documentCount }}</span>
+        </button>
+      }
+    </aside>
+
+    <div class="documents__main">
+      <form class="documents__search" (submit)="$event.preventDefault(); load()">
+        <input
+          type="search"
+          name="search"
+          [attr.aria-label]="text().documents.searchLabel"
+          [placeholder]="text().documents.searchLabel"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+        <button type="submit" class="wv-btn wv-btn--quiet wv-btn--sm">
+          {{ text().documents.searchAction }}
+        </button>
+      </form>
+
+      @if (loading()) {
+        <p class="documents__hint">{{ text().documents.loading }}</p>
+      } @else if (failed()) {
+        <p class="documents__hint documents__hint--error">{{ text().documents.loadFailed }}</p>
+      } @else if (isEmpty()) {
+        <p class="documents__hint">{{ text().documents.empty }}</p>
+      } @else {
+        <ul class="documents__list">
+          @for (item of items(); track item.id) {
+            <li class="doc">
+              <div class="doc__body">
+                <span class="doc__title" dir="auto">{{ item.title }}</span>
+
+                @if (item.description) {
+                  <span class="doc__description" dir="auto">{{ item.description }}</span>
+                }
+
+                <span class="doc__meta">
+                  {{ item.categoryName }}
+                  &middot; v{{ item.versionNumber }}
+                  @if (item.sizeBytes) {
+                    &middot; {{ size(item.sizeBytes) }}
+                  }
+                  &middot; {{ item.downloadCount }} {{ text().documents.downloads }}
+                </span>
+              </div>
+
+              @if (item.isDownloadable) {
+                <button
+                  type="button"
+                  class="wv-btn wv-btn--quiet wv-btn--sm"
+                  [disabled]="downloading() === item.id"
+                  (click)="download(item)"
+                >
+                  {{ downloading() === item.id ? text().documents.downloading : text().documents.download }}
+                </button>
+              } @else {
+                <!-- Said plainly rather than showing a button that does nothing. -->
+                <span class="doc__scanning">{{ text().documents.scanning }}</span>
+              }
+            </li>
+          }
+        </ul>
+      }
+    </div>
+  </div>
+</section>

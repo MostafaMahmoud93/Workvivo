@@ -40,6 +40,12 @@ public static class DependencyInjection
         services.AddSingleton<IDateTimeProvider, SystemDateTimeProvider>();
         services.AddSingleton<IContentSanitizer, HtmlSanitizerAdapter>();
 
+        // Constructed eagerly rather than lazily: it throws when the key is missing,
+        // and that failure belongs at startup, not at the moment somebody casts the
+        // first anonymous vote.
+        services.AddSingleton<IAnonymityHasher>(sp =>
+            new AnonymityHasher(sp.GetRequiredService<IConfiguration>()));
+
         AddCaching(services, configuration);
         AddStorage(services, configuration);
         AddBackgroundJobs(services, configuration);

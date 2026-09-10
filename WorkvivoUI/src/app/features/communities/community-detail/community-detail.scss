@@ -1,0 +1,154 @@
+.community {
+  max-width: 56rem;
+  margin: 0 auto;
+}
+
+.community__hint {
+  padding: 2rem 0;
+  color: var(--wv-text-muted);
+  text-align: center;
+
+  &--error {
+    color: var(--wv-danger);
+  }
+}
+
+.community__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1.25rem;
+  border: 1px solid var(--wv-line);
+  border-radius: var(--wv-radius-lg);
+  background: var(--wv-surface);
+  box-shadow: var(--wv-shadow-1);
+}
+
+.community__identity {
+  flex: 1 1 auto;
+  min-width: 0;
+
+  h1 {
+    margin: 0 0 0.2rem;
+    font-size: 1.35rem;
+  }
+}
+
+.community__meta {
+  margin: 0;
+  color: var(--wv-text-faint);
+  font-size: 0.82rem;
+}
+
+.community__description {
+  margin: 0.5rem 0 0;
+  color: var(--wv-text-muted);
+  font-size: 0.9rem;
+}
+
+.community__actions {
+  flex: none;
+}
+
+.community__pending {
+  color: var(--wv-text-faint);
+  font-size: 0.82rem;
+}
+
+.community__tabs {
+  display: flex;
+  gap: 0.25rem;
+  margin: 1.25rem 0 0.75rem;
+
+  button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid transparent;
+    border-radius: var(--wv-radius);
+    background: transparent;
+    color: var(--wv-text-muted);
+    font: inherit;
+    font-size: 0.88rem;
+    cursor: pointer;
+
+    &.is-active {
+      border-color: var(--wv-line);
+      background: var(--wv-surface);
+      color: var(--wv-text);
+      font-weight: 600;
+    }
+  }
+}
+
+.community__count {
+  min-width: 1.15rem;
+  padding: 0 0.3rem;
+  border-radius: 999px;
+  background: var(--wv-danger);
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1.15rem;
+  text-align: center;
+}
+
+.community__people {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--wv-line);
+  border-radius: var(--wv-radius-lg);
+  background: var(--wv-surface);
+  overflow: hidden;
+}
+
+.person {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid var(--wv-line);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.person__main {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex: 1 1 auto;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.person__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.person__name {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.person__title {
+  color: var(--wv-text-faint);
+  font-size: 0.78rem;
+}
+
+.person__role {
+  flex: none;
+  color: var(--wv-text-muted);
+  font-size: 0.78rem;
+}
+
+.person__controls {
+  display: flex;
+  gap: 0.3rem;
+  flex: none;
+}

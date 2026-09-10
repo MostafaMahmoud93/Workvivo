@@ -64,28 +64,444 @@ public sealed class DevelopmentDataSeeder
             return;
         }
 
-        if (await _context.Org_Organizations.AnyAsync(cancellationToken))
+        // Per-area rather than one gate over everything.
+        //
+        // A single "is anything seeded?" check was right while there was one phase of
+        // content. It is wrong now: each phase adds sample data, and a developer whose
+        // database predates that phase would have to drop it to see the new feature.
+        // Every step below is a no-op when its own tables already hold rows.
+        var seededPeople = false;
+
+        if (!await _context.Org_Organizations.AnyAsync(cancellationToken))
         {
-            _logger.LogInformation("Development data already present; nothing to seed");
+            _logger.LogWarning(
+                "Seeding development data. Every seeded account uses the same well-known password.");
+
+            var organization = await SeedOrganizationAsync(cancellationToken);
+            var locations = await SeedLocationsAsync(organization.Id, cancellationToken);
+            var jobTitles = await SeedJobTitlesAsync(organization.Id, cancellationToken);
+            var departments = await SeedDepartmentsAsync(organization.Id, cancellationToken);
+            var teams = await SeedTeamsAsync(departments, cancellationToken);
+            var people = await SeedEmployeesAsync(departments, teams, locations, jobTitles, cancellationToken);
+
+            await SeedReportingLinesAsync(people, departments, cancellationToken);
+            await SeedFollowsAsync(people, cancellationToken);
+            await SeedSkillsAsync(people, cancellationToken);
+            await SeedPostsAsync(people, departments, locations, cancellationToken);
+
+            _logger.LogInformation("Seeded {Count} development employees", people.Count);
+            seededPeople = true;
+        }
+
+        var employees = await _context.Org_Employees.ToListAsync(cancellationToken);
+
+        if (employees.Count == 0)
+        {
             return;
         }
 
-        _logger.LogWarning(
-            "Seeding development data. Every seeded account uses the same well-known password.");
+        await SeedCommunitiesAsync(employees, cancellationToken);
+        await SeedPollsAndSurveysAsync(employees, cancellationToken);
+        await SeedEventsAsync(employees, cancellationToken);
 
-        var organization = await SeedOrganizationAsync(cancellationToken);
-        var locations = await SeedLocationsAsync(organization.Id, cancellationToken);
-        var jobTitles = await SeedJobTitlesAsync(organization.Id, cancellationToken);
-        var departments = await SeedDepartmentsAsync(organization.Id, cancellationToken);
-        var teams = await SeedTeamsAsync(departments, cancellationToken);
-        var employees = await SeedEmployeesAsync(departments, teams, locations, jobTitles, cancellationToken);
+        if (!seededPeople)
+        {
+            _logger.LogInformation("Development data topped up for the newer feature areas");
+        }
+    }
 
-        await SeedReportingLinesAsync(employees, departments, cancellationToken);
-        await SeedFollowsAsync(employees, cancellationToken);
-        await SeedSkillsAsync(employees, cancellationToken);
-        await SeedPostsAsync(employees, departments, locations, cancellationToken);
+    /// <summary>
+    /// Three events: one company-wide and physical, one online, and one already full.
+    ///
+    /// The full one exists so the capacity rule is reachable without setting it up by
+    /// hand - it is the case where an RSVP has to be refused for a joiner and still
+    /// permitted for somebody withdrawing.
+    /// </summary>
+    private async Task SeedEventsAsync(List<Employee> employees, CancellationToken cancellationToken)
+    {
+        if (await _context.Evt_Events.AnyAsync(cancellationToken))
+        {
+            return;
+        }
 
-        _logger.LogInformation("Seeded {Count} development employees", employees.Count);
+        Employee Person(string key) =>
+            employees.FirstOrDefault(employee => employee.Id == DeterministicGuid.From($"dev:emp:{key}"))
+            ?? employees[0];
+
+        var now = DateTime.UtcNow;
+
+        var definitions = new (string Key, string En, string Ar, EventFormat Format, int DaysAhead,
+            int Hours, int? Capacity, string? Url, string Organizer)[]
+        {
+            ("townhall", "Quarterly town hall", "اللقاء الربعي",
+                EventFormat.Hybrid, 3, 1, null, "https://meet.example.com/townhall", "khalid"),
+
+            ("onboarding", "New joiner welcome", "ترحيب بالموظفين الجدد",
+                EventFormat.Online, 5, 1, null, "https://meet.example.com/welcome", "khalid"),
+
+            ("workshop", "Design systems workshop", "ورشة أنظمة التصميم",
+                EventFormat.Physical, 8, 3, 2, null, "amira"),
+        };
+
+        foreach (var definition in definitions)
+        {
+            var id = DeterministicGuid.From($"dev:event:{definition.Key}");
+            var organizer = Person(definition.Organizer);
+            var start = now.AddDays(definition.DaysAhead);
+
+            _context.Evt_Events.Add(new Event
+            {
+                Id = id,
+                Title_En = definition.En,
+                Title_Ar = definition.Ar,
+                Description_En = "Seeded development event.",
+                Description_Ar = "فعالية تجريبية للتطوير.",
+                Event_Type = EventType.Company,
+                Format = definition.Format,
+                Status = EventStatus.Published,
+                Start_At = start,
+                End_At = start.AddHours(definition.Hours),
+                TimeZone_Id = "Asia/Dubai",
+                Is_All_Day = false,
+                Meeting_Url = definition.Url,
+                Organizer_Employee_Id = organizer.Id,
+                Capacity = definition.Capacity,
+                Attendees_Count = 0,
+                Requires_Rsvp = true,
+                Is_Deleted = false,
+                Created_By = organizer.User_Id,
+                Create_Date = now,
+            });
+
+            _context.Evt_Audiences.Add(new EventAudience(id, AudienceType.AllEmployees, null)
+            {
+                Id = DeterministicGuid.From($"dev:eventaudience:{definition.Key}"),
+            });
+        }
+
+        // The workshop is seeded at its capacity of two, so "full" is reachable
+        // immediately rather than after somebody sets it up.
+        var workshopId = DeterministicGuid.From("dev:event:workshop");
+
+        foreach (var key in new[] { "yusuf", "tariq" })
+        {
+            var person = Person(key);
+
+            _context.Evt_Attendees.Add(new EventAttendee
+            {
+                Id = DeterministicGuid.From($"dev:eventattendee:{key}"),
+                Event_Id = workshopId,
+                Employee_Id = person.Id,
+                Response = EventResponse.Attending,
+                Responded_At = now,
+                Is_Deleted = false,
+            });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var workshop = await _context.Evt_Events.FirstAsync(e => e.Id == workshopId, cancellationToken);
+        workshop.Attendees_Count = 2;
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Seeded {Count} development events", definitions.Length);
+    }
+
+    /// <summary>
+    /// One open poll and one open survey, both addressed to everybody.
+    ///
+    /// The survey deliberately mixes question types - a scale, a choice and free text -
+    /// because the results aggregation treats each differently and a seed with one
+    /// type would exercise a third of it.
+    /// </summary>
+    private async Task SeedPollsAndSurveysAsync(
+        List<Employee> employees,
+        CancellationToken cancellationToken)
+    {
+        if (await _context.Poll_Polls.AnyAsync(cancellationToken)
+            || await _context.Srv_Surveys.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        var author = employees.FirstOrDefault(
+            employee => employee.Id == DeterministicGuid.From("dev:emp:khalid")) ?? employees[0];
+
+        var now = DateTime.UtcNow;
+
+        var pollId = DeterministicGuid.From("dev:poll:lunch");
+
+        _context.Poll_Polls.Add(new Poll
+        {
+            Id = pollId,
+            Question_En = "Where should the next team lunch be?",
+            Question_Ar = "أين تفضّل غداء الفريق القادم؟",
+            Is_Multiple_Choice = false,
+            Is_Anonymous = false,
+            Show_Results_Before_Voting = false,
+            Status = PollStatus.Open,
+            Start_Date = now.AddHours(-2),
+            Expiry_Date = now.AddDays(7),
+            Total_Votes = 0,
+            Is_Deleted = false,
+            Created_By = author.User_Id,
+            Create_Date = now.AddHours(-2),
+        });
+
+        var options = new (string Key, string En, string Ar)[]
+        {
+            ("levant", "The Levantine place downstairs", "المطعم الشامي في الأسفل"),
+            ("indian", "Indian on the corner", "المطعم الهندي في الزاوية"),
+            ("picnic", "Picnic in the park", "نزهة في الحديقة"),
+        };
+
+        var order = 0;
+
+        foreach (var option in options)
+        {
+            _context.Poll_Options.Add(new PollOption
+            {
+                Id = DeterministicGuid.From($"dev:polloption:{option.Key}"),
+                Poll_Id = pollId,
+                Text_En = option.En,
+                Text_Ar = option.Ar,
+                Sort_Order = order++,
+                Votes_Count = 0,
+                Is_Deleted = false,
+            });
+        }
+
+        _context.Poll_Audiences.Add(new PollAudience(pollId, AudienceType.AllEmployees, null)
+        {
+            Id = DeterministicGuid.From("dev:pollaudience:lunch"),
+        });
+
+        var surveyId = DeterministicGuid.From("dev:survey:pulse");
+
+        _context.Srv_Surveys.Add(new Survey
+        {
+            Id = surveyId,
+            Title_En = "Quarterly pulse check",
+            Title_Ar = "استبيان النبض الربعي",
+            Description_En = "Five minutes, and it is anonymous. Tell us how this quarter has felt.",
+            Description_Ar = "خمس دقائق، وهو مجهول الهوية. أخبرنا كيف كان هذا الربع.",
+            Status = SurveyStatus.Published,
+
+            // Anonymous on purpose: it is the case with the interesting behaviour -
+            // the keyed respondent hash, and verbatim comments withheld below the
+            // threshold.
+            Is_Anonymous = true,
+            Allow_Multiple_Responses = false,
+            Start_Date = now.AddDays(-1),
+            End_Date = now.AddDays(14),
+            Response_Count = 0,
+            Invited_Count = employees.Count,
+            Is_Deleted = false,
+            Created_By = author.User_Id,
+            Create_Date = now.AddDays(-1),
+        });
+
+        _context.Srv_Audiences.Add(new SurveyAudience(surveyId, AudienceType.AllEmployees, null)
+        {
+            Id = DeterministicGuid.From("dev:surveyaudience:pulse"),
+        });
+
+        var questions = new (string Key, SurveyQuestionType Type, string En, string Ar, bool Required)[]
+        {
+            ("workload", SurveyQuestionType.Scale,
+                "How manageable has your workload been?", "كيف كان حجم عملك؟", true),
+            ("recommend", SurveyQuestionType.Nps,
+                "How likely are you to recommend us as a place to work?",
+                "ما مدى احتمال أن توصي بالعمل معنا؟", true),
+            ("blocker", SurveyQuestionType.SingleChoice,
+                "What slowed you down most?", "ما الذي أعاقك أكثر؟", false),
+            ("anything", SurveyQuestionType.Text,
+                "Anything else we should know?", "هل من شيء آخر ينبغي أن نعرفه؟", false),
+        };
+
+        var questionOrder = 0;
+
+        foreach (var question in questions)
+        {
+            var questionId = DeterministicGuid.From($"dev:surveyq:{question.Key}");
+
+            _context.Srv_Questions.Add(new SurveyQuestion
+            {
+                Id = questionId,
+                Survey_Id = surveyId,
+                Question_Type = question.Type,
+                Text_En = question.En,
+                Text_Ar = question.Ar,
+                Is_Required = question.Required,
+                Sort_Order = questionOrder++,
+                Min_Value = question.Type == SurveyQuestionType.Scale ? 1 : null,
+                Max_Value = question.Type == SurveyQuestionType.Scale ? 5 : null,
+                Min_Label_En = question.Type == SurveyQuestionType.Scale ? "Overwhelming" : null,
+                Min_Label_Ar = question.Type == SurveyQuestionType.Scale ? "مرهق" : null,
+                Max_Label_En = question.Type == SurveyQuestionType.Scale ? "Comfortable" : null,
+                Max_Label_Ar = question.Type == SurveyQuestionType.Scale ? "مريح" : null,
+                Is_Deleted = false,
+                Created_By = author.User_Id,
+                Create_Date = now.AddDays(-1),
+            });
+
+            if (question.Type != SurveyQuestionType.SingleChoice)
+            {
+                continue;
+            }
+
+            var choices = new (string Key, string En, string Ar)[]
+            {
+                ("meetings", "Too many meetings", "كثرة الاجتماعات"),
+                ("waiting", "Waiting on other teams", "انتظار فرق أخرى"),
+                ("tools", "Tooling and access", "الأدوات والصلاحيات"),
+                ("nothing", "Nothing in particular", "لا شيء بعينه"),
+            };
+
+            var choiceOrder = 0;
+
+            foreach (var choice in choices)
+            {
+                _context.Srv_QuestionOptions.Add(new SurveyQuestionOption
+                {
+                    Id = DeterministicGuid.From($"dev:surveyopt:{choice.Key}"),
+                    Question_Id = questionId,
+                    Text_En = choice.En,
+                    Text_Ar = choice.Ar,
+                    Sort_Order = choiceOrder++,
+                    Is_Deleted = false,
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Seeded a development poll and survey");
+    }
+
+    /// <summary>
+    /// Two communities with different privacy settings and a pending request.
+    ///
+    /// Chosen so the interesting cases are reachable without setting them up by hand:
+    /// a Public one anybody can join, a Restricted one that exercises the approval
+    /// queue, and somebody already waiting in it.
+    /// </summary>
+    private async Task SeedCommunitiesAsync(List<Employee> employees, CancellationToken cancellationToken)
+    {
+        if (await _context.Comm_Communities.AnyAsync(cancellationToken))
+        {
+            return;
+        }
+
+        Employee? Person(string key) =>
+            employees.FirstOrDefault(employee => employee.Id == DeterministicGuid.From($"dev:emp:{key}"));
+
+        var owner = Person("amira") ?? employees[0];
+        var moderator = Person("hana") ?? employees[0];
+        var now = DateTime.UtcNow;
+
+        var definitions = new (string Key, string NameEn, string NameAr, string DescriptionEn,
+            string DescriptionAr, CommunityPrivacy Privacy, Employee Owner)[]
+        {
+            ("football", "Football Club", "نادي كرة القدم",
+                "Five-a-side every Wednesday evening. All levels welcome.",
+                "مباراة كل أربعاء مساءً. الجميع مرحّب بهم.",
+                CommunityPrivacy.Public, owner),
+
+            ("design-guild", "Design Guild", "مجلس التصميم",
+                "Critique, patterns and the design system. Ask to join.",
+                "نقد التصاميم والأنماط ونظام التصميم. اطلب الانضمام.",
+                CommunityPrivacy.Restricted, moderator),
+        };
+
+        foreach (var definition in definitions)
+        {
+            var id = DeterministicGuid.From($"dev:community:{definition.Key}");
+
+            _context.Comm_Communities.Add(new Community
+            {
+                Id = id,
+                Slug = CommunitySlug.From(definition.NameEn, definition.NameAr),
+                Name_En = definition.NameEn,
+                Name_Ar = definition.NameAr,
+                Description_En = definition.DescriptionEn,
+                Description_Ar = definition.DescriptionAr,
+                Privacy = definition.Privacy,
+                Owner_Employee_Id = definition.Owner.Id,
+                Is_Active = true,
+                Is_Featured = definition.Key == "football",
+                Members_Count = 0,
+                Is_Deleted = false,
+                Created_By = definition.Owner.User_Id,
+                Create_Date = now,
+            });
+
+            _context.Comm_Members.Add(new CommunityMember
+            {
+                Id = DeterministicGuid.From($"dev:commmember:{definition.Key}:owner"),
+                Community_Id = id,
+                Employee_Id = definition.Owner.Id,
+                Member_Role = CommunityMemberRole.Owner,
+                Membership_Status = MembershipStatus.Approved,
+                Requested_At = now,
+                Joined_At = now,
+                Is_Deleted = false,
+                Created_By = definition.Owner.User_Id,
+                Create_Date = now,
+            });
+        }
+
+        var footballId = DeterministicGuid.From("dev:community:football");
+        var guildId = DeterministicGuid.From("dev:community:design-guild");
+
+        var joiners = new (string Key, Guid CommunityId, MembershipStatus Status)[]
+        {
+            ("yusuf", footballId, MembershipStatus.Approved),
+            ("tariq", footballId, MembershipStatus.Approved),
+
+            // The one that makes the approval queue non-empty on a fresh database.
+            ("yusuf", guildId, MembershipStatus.Pending),
+        };
+
+        foreach (var (key, communityId, status) in joiners)
+        {
+            if (Person(key) is not { } person)
+            {
+                continue;
+            }
+
+            _context.Comm_Members.Add(new CommunityMember
+            {
+                Id = DeterministicGuid.From($"dev:commmember:{communityId}:{key}"),
+                Community_Id = communityId,
+                Employee_Id = person.Id,
+                Member_Role = CommunityMemberRole.Member,
+                Membership_Status = status,
+                Requested_At = now,
+                Joined_At = status == MembershipStatus.Approved ? now : null,
+                Is_Deleted = false,
+                Created_By = person.User_Id,
+                Create_Date = now,
+            });
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        // Counted from the rows just written rather than incremented as they were
+        // added, so the seed cannot disagree with itself the way a hand-maintained
+        // total eventually does.
+        foreach (var community in await _context.Comm_Communities.ToListAsync(cancellationToken))
+        {
+            community.Members_Count = await _context.Comm_Members.CountAsync(
+                member => member.Community_Id == community.Id
+                    && member.Membership_Status == MembershipStatus.Approved,
+                cancellationToken);
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Seeded {Count} development communities", definitions.Length);
     }
 
     private async Task<Organization> SeedOrganizationAsync(CancellationToken cancellationToken)

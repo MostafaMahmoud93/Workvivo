@@ -55,6 +55,18 @@ export class FeedService {
       .pipe(map((response) => response.data));
   }
 
+  /**
+   * Reports posts the reader has actually seen.
+   *
+   * One request per batch, not per post - this is the highest-volume write in the
+   * product and a request per row would multiply every scroll by twenty.
+   */
+  recordViews(postIds: string[]): Observable<number> {
+    return this.http
+      .post<ServiceResponse<number>>(this.base + '/views', { postIds })
+      .pipe(map((response) => response.data));
+  }
+
   createPost(contentHtml: string, title: string | null): Observable<string> {
     return this.http
       .post<ServiceResponse<string>>(this.base, {

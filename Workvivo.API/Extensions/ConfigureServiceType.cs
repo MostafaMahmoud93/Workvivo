@@ -1,5 +1,6 @@
 ﻿using Workvivo.Application.Features.Auth.Services;
 using Workvivo.Infrastructure.Identity;
+using Workvivo.Application.Features.Communities.Common;
 using Workvivo.Application.Features.Posts.Common;
 using Workvivo.Infrastructure.Feed;
 using Workvivo.Infrastructure.Seeding;
@@ -31,6 +32,7 @@ public static class ConfigureServiceType
         // Feed (phase 6).
         services.AddScoped<IAudienceResolver, AudienceResolver>();
         services.AddScoped<PostAuthorization>();
+        services.AddScoped<CommunityAuthorization>();
 
         // A policy provider rather than a policy per permission: permissions are rows
         // in a table, so the set is not known at start-up.

@@ -1,0 +1,83 @@
+<section class="events">
+  <header class="events__head">
+    <h1>{{ text().events.heading }}</h1>
+    <p>{{ text().events.lede }}</p>
+  </header>
+
+  @if (loading()) {
+    <p class="events__hint">{{ text().events.loading }}</p>
+  } @else if (failed()) {
+    <p class="events__hint events__hint--error">{{ text().events.loadFailed }}</p>
+  } @else if (isEmpty()) {
+    <p class="events__hint">{{ text().events.empty }}</p>
+  } @else {
+    @for (day of days(); track day.label) {
+      <h2 class="events__day">{{ day.label }}</h2>
+
+      <ul class="events__list">
+        @for (item of day.events; track item.id) {
+          <li class="event">
+            <div class="event__when">
+              <span class="event__time">{{ time(item) }}</span>
+              <span class="event__where" dir="auto">{{ where(item) }}</span>
+            </div>
+
+            <div class="event__body">
+              <span class="event__title" dir="auto">{{ item.title }}</span>
+
+              @if (item.description) {
+                <span class="event__description" dir="auto">{{ item.description }}</span>
+              }
+
+              <span class="event__meta">
+                {{ item.attendeesCount }}
+                @if (item.capacity) {
+                  / {{ item.capacity }}
+                }
+                {{ text().events.going }}
+                @if (item.organizerDisplayName) {
+                  &middot; {{ item.organizerDisplayName }}
+                }
+              </span>
+
+              @if (item.meetingUrl) {
+                <a class="event__join" [href]="item.meetingUrl" target="_blank" rel="noopener noreferrer">
+                  {{ text().events.join }}
+                </a>
+              }
+            </div>
+
+            @if (item.requiresRsvp) {
+              <div class="event__rsvp">
+                <button
+                  type="button"
+                  [class.is-chosen]="item.myResponse === responses.Attending"
+                  [disabled]="!item.canRsvp || busy() === item.id"
+                  (click)="respond(item, responses.Attending)"
+                >
+                  {{ text().events.attending }}
+                </button>
+                <button
+                  type="button"
+                  [class.is-chosen]="item.myResponse === responses.Maybe"
+                  [disabled]="!item.canRsvp || busy() === item.id"
+                  (click)="respond(item, responses.Maybe)"
+                >
+                  {{ text().events.maybe }}
+                </button>
+                <button
+                  type="button"
+                  [class.is-chosen]="item.myResponse === responses.Declined"
+                  [disabled]="!item.canRsvp || busy() === item.id"
+                  (click)="respond(item, responses.Declined)"
+                >
+                  {{ text().events.declined }}
+                </button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  }
+</section>

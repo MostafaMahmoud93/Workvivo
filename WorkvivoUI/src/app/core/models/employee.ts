@@ -1,13 +1,6 @@
-/** Mirrors Workvivo.Application.Common.Paging.PagedResult<T>. */
-export interface PagedResult<T> {
-  items: T[];
-  pageNumber: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
-}
+// Re-exported so the existing imports keep working; the definition now lives in
+// paging.ts, which is where a type used by four features belongs.
+export type { PagedResult } from './paging';
 
 export interface EmployeeListItem {
   id: string;

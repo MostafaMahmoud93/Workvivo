@@ -1,0 +1,129 @@
+<section class="communities">
+  <header class="communities__head">
+    <div>
+      <h1>{{ text().communities.heading }}</h1>
+      <p>{{ text().communities.lede }}</p>
+    </div>
+
+    <div class="communities__tabs" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="scope() === 'Discover'"
+        [class.is-active]="scope() === 'Discover'"
+        (click)="setScope('Discover')"
+      >
+        {{ text().communities.discover }}
+      </button>
+      <button
+        type="button"
+        role="tab"
+        [attr.aria-selected]="scope() === 'Mine'"
+        [class.is-active]="scope() === 'Mine'"
+        (click)="setScope('Mine')"
+      >
+        {{ text().communities.mine }}
+      </button>
+    </div>
+  </header>
+
+  @if (invitations().length > 0) {
+    <div class="communities__invites">
+      <h2>{{ text().communities.invitations }}</h2>
+
+      @for (invitation of invitations(); track invitation.id) {
+        <div class="communities__invite">
+          <span dir="auto">
+            <strong>{{ invitation.communityName }}</strong>
+            &mdash; {{ invitation.invitedByDisplayName }}
+          </span>
+
+          <span class="communities__invite-actions">
+            <button type="button" class="wv-btn wv-btn--primary wv-btn--sm" (click)="respond(invitation, true)">
+              {{ text().communities.accept }}
+            </button>
+            <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="respond(invitation, false)">
+              {{ text().communities.decline }}
+            </button>
+          </span>
+        </div>
+      }
+    </div>
+  }
+
+  <form class="communities__search" (submit)="$event.preventDefault(); load()">
+    <input
+      type="search"
+      [attr.aria-label]="text().communities.searchLabel"
+      [placeholder]="text().communities.searchLabel"
+      [ngModel]="search()"
+      (ngModelChange)="search.set($event)"
+      name="search"
+    />
+    <button type="submit" class="wv-btn wv-btn--quiet wv-btn--sm">
+      {{ text().communities.searchAction }}
+    </button>
+  </form>
+
+  @if (loading()) {
+    <p class="communities__hint">{{ text().communities.loading }}</p>
+  } @else if (failed()) {
+    <p class="communities__hint communities__hint--error">{{ text().communities.loadFailed }}</p>
+  } @else if (isEmpty()) {
+    <p class="communities__hint">{{ text().communities.empty }}</p>
+  } @else {
+    <ul class="communities__grid">
+      @for (community of items(); track community.id) {
+        <li class="community-card">
+          <a class="community-card__main" [routerLink]="['/communities', community.id]">
+            <app-avatar [name]="community.name" [size]="44" />
+
+            <span class="community-card__text">
+              <span class="community-card__name" dir="auto">{{ community.name }}</span>
+
+              @if (community.description) {
+                <span class="community-card__description" dir="auto">{{ community.description }}</span>
+              }
+
+              <span class="community-card__meta">
+                {{ community.membersCount }} {{ text().communities.members }}
+                &middot; {{ privacyLabel(community.privacy) }}
+                @if (community.isFeatured) {
+                  &middot; <span class="community-card__badge">{{ text().communities.featured }}</span>
+                }
+              </span>
+            </span>
+          </a>
+
+          <div class="community-card__action">
+            @if (community.myMembershipStatus === status.Pending) {
+              <span class="community-card__pending">{{ text().communities.pending }}</span>
+            } @else if (community.myMembershipStatus === status.Approved) {
+              <button
+                type="button"
+                class="wv-btn wv-btn--quiet wv-btn--sm"
+                [disabled]="busy() === community.id"
+                (click)="leave(community)"
+              >
+                {{ text().communities.leave }}
+              </button>
+            } @else if (community.canJoin) {
+              <button
+                type="button"
+                class="wv-btn wv-btn--primary wv-btn--sm"
+                [disabled]="busy() === community.id"
+                (click)="join(community)"
+              >
+                {{
+                  community.privacy === privacy.Public
+                    ? text().communities.join
+                    : text().communities.requestToJoin
+                }}
+              </button>
+            }
+          </div>
+        </li>
+      }
+    </ul>
+  }
+</section>

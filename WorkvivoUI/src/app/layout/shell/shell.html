@@ -12,11 +12,25 @@
       routerLinkActive="is-active"
       >{{ text().app.directory }}</a
     >
+    <a routerLink="/communities" routerLinkActive="is-active">{{ text().app.communities }}</a>
+    <a routerLink="/recognition" routerLinkActive="is-active">{{ text().app.recognition }}</a>
+    <a routerLink="/events" routerLinkActive="is-active">{{ text().app.events }}</a>
+    <a *appHasPermission="'Document.View'" routerLink="/documents" routerLinkActive="is-active">{{
+      text().app.documents
+    }}</a>
+    <a routerLink="/pulse" routerLinkActive="is-active">{{ text().app.pulse }}</a>
+    <a *appHasPermission="'Analytics.View'" routerLink="/analytics" routerLinkActive="is-active">{{
+      text().app.analytics
+    }}</a>
+    <a *appHasPermission="'Role.Manage'" routerLink="/admin" routerLinkActive="is-active">{{
+      text().app.admin
+    }}</a>
     <a routerLink="/profile" routerLinkActive="is-active">{{ text().app.myProfile }}</a>
     <a routerLink="/public" routerLinkActive="is-active">{{ text().app.public }}</a>
   </nav>
 
   <div class="shell__account">
+    <app-global-search />
     <app-notification-bell />
     <app-language-toggle />
     @if (user(); as current) {

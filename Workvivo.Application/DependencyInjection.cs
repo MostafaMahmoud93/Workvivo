@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Workvivo.Application.Behaviors;
 using Workvivo.Application.Bases;
 using Workvivo.Application.Common.Events;
+using Workvivo.Application.Common.Security;
 using Workvivo.Application.Features.Notifications.Common;
 using Workvivo.Application.Features.Notifications.Jobs;
 
@@ -46,6 +47,7 @@ public static class DependencyInjection
 
         // The one place a notification is created. Scoped, because it writes through
         // the request's unit of work.
+        services.AddScoped<CurrentEmployee>();
         services.AddScoped<INotificationDispatcher, NotificationDispatcher>();
         services.AddScoped<IPublisherAdapter, PublisherAdapter>();
         services.AddSingleton<NotificationEmailRenderer>();
@@ -58,6 +60,9 @@ public static class DependencyInjection
         services.AddScoped<IScheduledPostPublishingJob, ScheduledPostPublishingJob>();
         services.AddScoped<ICounterReconciliationJob, CounterReconciliationJob>();
         services.AddScoped<IAnnouncementFanOutJob, AnnouncementFanOutJob>();
+        services.AddScoped<Features.Recognition.Jobs.ILeaderboardSnapshotJob,
+            Features.Recognition.Jobs.LeaderboardSnapshotJob>();
+        services.AddScoped<Features.Events.Jobs.IEventReminderJob, Features.Events.Jobs.EventReminderJob>();
 
         // Registers every Profile in this assembly (MapperProfile/* and the per-feature
         // Mappings folders). Every service here injects IMapper, so without this the
