@@ -48,3 +48,24 @@ public enum NotificationDigestFrequency
     Weekly = 3,
     Never = 4,
 }
+
+/// <summary>
+/// What a notification points at.
+///
+/// Held alongside the id so the client can build the deep link itself and so
+/// "everything about this post" can be found without parsing <c>RedirectUrl</c> - which
+/// is a display concern and changes whenever the routes do.
+/// </summary>
+public enum NotificationEntityType
+{
+    None = 0,
+    Post = 1,
+    Comment = 2,
+    Employee = 3,
+    Community = 4,
+    Event = 5,
+    Survey = 6,
+    Poll = 7,
+    Recognition = 8,
+    Document = 9,
+}

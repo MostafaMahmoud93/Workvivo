@@ -71,6 +71,18 @@ public static class RouteClass
         public const string Delete = "api/comments/{commentId:guid}";
     }
 
+    /// <summary>
+    /// Everything here is scoped to the caller by the handler, never by a route
+    /// parameter. There is deliberately no "notifications for employee {id}" endpoint.
+    /// </summary>
+    public static class Notifications
+    {
+        public const string List = "api/notifications";
+        public const string UnreadCount = "api/notifications/unread-count";
+        public const string MarkRead = "api/notifications/read";
+        public const string Preferences = "api/notifications/preferences";
+    }
+
     public static class OrganizationRoutes
     {
         public const string DepartmentTree = "api/organization/departments/tree";

@@ -1,0 +1,71 @@
+<div class="bell">
+  <button
+    type="button"
+    class="bell__button"
+    [class.is-open]="open()"
+    [attr.aria-expanded]="open()"
+    [attr.aria-label]="text().notifications.title"
+    (click)="toggle()"
+  >
+    <span class="bell__glyph" aria-hidden="true">&#128276;</span>
+
+    @if (unread() > 0) {
+      <span class="bell__badge">{{ badge() }}</span>
+    }
+  </button>
+
+  @if (open()) {
+    <div class="bell__panel" role="dialog" [attr.aria-label]="text().notifications.title">
+      <header class="bell__head">
+        <h2>{{ text().notifications.title }}</h2>
+
+        <div class="bell__actions">
+          @if (unread() > 0) {
+            <button type="button" class="wv-btn wv-btn--quiet wv-btn--sm" (click)="markAllRead()">
+              {{ text().notifications.markAllRead }}
+            </button>
+          }
+          <a
+            class="wv-btn wv-btn--quiet wv-btn--sm"
+            routerLink="/settings/notifications"
+            (click)="open.set(false)"
+            >{{ text().notifications.settings }}</a
+          >
+        </div>
+      </header>
+
+      <div class="bell__list">
+        @if (loading()) {
+          <p class="bell__hint">{{ text().notifications.loading }}</p>
+        } @else if (items().length === 0) {
+          <p class="bell__hint">{{ text().notifications.empty }}</p>
+        } @else {
+          @for (item of items(); track item.id) {
+            <button
+              type="button"
+              class="bell__item"
+              [class.is-unread]="!item.isSeen"
+              (click)="activate(item)"
+            >
+              <span class="bell__icon" aria-hidden="true">{{ glyphFor(item.type) }}</span>
+
+              <span class="bell__body">
+                <span class="bell__header" dir="auto">{{ item.header }}</span>
+
+                @if (item.content) {
+                  <span class="bell__content" dir="auto">{{ item.content }}</span>
+                }
+
+                <span class="bell__when">{{ when(item.createdDate) }}</span>
+              </span>
+
+              @if (!item.isSeen) {
+                <span class="bell__dot" aria-hidden="true"></span>
+              }
+            </button>
+          }
+        }
+      </div>
+    </div>
+  }
+</div>

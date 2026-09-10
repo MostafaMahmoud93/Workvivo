@@ -4,6 +4,7 @@ using Workvivo.Domain.Entities.BaseEntities;
 using Workvivo.Domain.Entities.Communities;
 using Workvivo.Domain.Entities.Documents;
 using Workvivo.Domain.Entities.Organization;
+using Workvivo.Domain.Events;
 
 namespace Workvivo.Domain.Entities.Feed;
 
@@ -52,4 +53,26 @@ public class Comment : AuditableEntity<Guid>
     /// already at the limit and cannot be replied to.
     /// </summary>
     public int? ReplyDepth() => Depth >= MaxDepth ? null : Depth + 1;
+
+    /// <summary>
+    /// Records that this comment was added, so the people involved can be told.
+    ///
+    /// The two authors are passed in rather than read from the navigations. The handler
+    /// has already loaded both to check the depth cap and the post's state, and reaching
+    /// through <c>Post.Author</c> here would lazy-load them again - inside the
+    /// transaction, on the write path.
+    /// </summary>
+    public void RecordAdded(
+        Guid postAuthorEmployeeId,
+        Guid? parentAuthorEmployeeId,
+        DateTime occurredOnUtc) =>
+        Raise(new CommentAddedDomainEvent(
+            Id,
+            Post_Id,
+            Author_Employee_Id,
+            postAuthorEmployeeId,
+            Parent_Comment_Id,
+            parentAuthorEmployeeId,
+            [.. Mentions.Select(mention => mention.Mentioned_Employee_Id)],
+            occurredOnUtc));
 }

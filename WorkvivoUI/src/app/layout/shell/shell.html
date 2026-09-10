@@ -17,6 +17,7 @@
   </nav>
 
   <div class="shell__account">
+    <app-notification-bell />
     <app-language-toggle />
     @if (user(); as current) {
       <span class="shell__who" dir="auto">{{ current.displayName ?? current.userName }}</span>

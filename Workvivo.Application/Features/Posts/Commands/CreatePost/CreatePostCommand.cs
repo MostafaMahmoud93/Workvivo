@@ -114,11 +114,6 @@ public sealed class CreatePostCommandHandler : IRequestHandler<CreatePostCommand
             post.Status = PostStatus.Scheduled;
             post.Scheduled_Publish_Date = scheduled;
         }
-        else if (request.PublishNow)
-        {
-            post.Status = PostStatus.Published;
-            post.Published_Date = now;
-        }
         else
         {
             post.Status = PostStatus.Draft;
@@ -127,7 +122,19 @@ public sealed class CreatePostCommandHandler : IRequestHandler<CreatePostCommand
         await _unitOfWork.Repository<Post, Guid>().AddAsync(post);
 
         AddAudiences(post, request);
-        await AddMentionsAsync(post, request.MentionedEmployeeIds, now, cancellationToken);
+
+        // Mentions first, then publish. Publishing raises the event that notifies the
+        // people mentioned, so it has to happen once the list is known and validated -
+        // otherwise a post published in the same breath as it is written tells nobody.
+        var mentioned = await AddMentionsAsync(post, request.MentionedEmployeeIds, now, cancellationToken);
+
+        if (request.PublishNow && request.ScheduledPublishDate is null)
+        {
+            // The domain decides what publishing means; this handler only decides
+            // whether it happens now. The scheduler and the moderator's publish button
+            // go through the same method.
+            post.Publish(now, mentioned);
+        }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -206,7 +213,8 @@ public sealed class CreatePostCommandHandler : IRequestHandler<CreatePostCommand
     /// back out of the HTML - re-parsing markup to find names is fragile and gets worse
     /// with every edit. The ids are still validated here: a caller can send anything.
     /// </summary>
-    private async Task AddMentionsAsync(
+    /// <returns>The ids that survived validation - the people who will actually be told.</returns>
+    private async Task<IReadOnlyList<Guid>> AddMentionsAsync(
         Post post,
         IReadOnlyList<Guid> mentionedEmployeeIds,
         DateTime now,
@@ -214,7 +222,7 @@ public sealed class CreatePostCommandHandler : IRequestHandler<CreatePostCommand
     {
         if (mentionedEmployeeIds.Count == 0)
         {
-            return;
+            return [];
         }
 
         var distinct = mentionedEmployeeIds.Distinct().ToArray();
@@ -236,5 +244,7 @@ public sealed class CreatePostCommandHandler : IRequestHandler<CreatePostCommand
                 Is_Deleted = false,
             });
         }
+
+        return valid;
     }
 }

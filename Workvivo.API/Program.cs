@@ -3,11 +3,13 @@ using Microsoft.Extensions.Options;
 using Serilog;
 using Workvivo.API.Middleware;
 using Workvivo.API.Options;
+using Workvivo.API.Serialization;
 using Workvivo.Application;
 using Workvivo.Application.Features.Auth;
 using Workvivo.Infrastructure.Identity;
 using Workvivo.Infrastructure.Seeding;
 using Workvivo.Infrastructure;
+using Workvivo.Infrastructure.Realtime;
 
 // A bootstrap logger, so a failure during configuration (a missing connection string,
 // an invalid signing key) is written somewhere instead of vanishing. Replaced by the
@@ -55,10 +57,26 @@ try
 
     #region Services
 
-    builder.Services.AddControllers();
+    builder.Services.AddControllers().AddJsonOptions(options =>
+    {
+        // Every DateTime leaves the API as UTC with a trailing Z. See
+        // UtcDateTimeConverter for what goes wrong without it - times that are silently
+        // out by the client's offset, with no error anywhere.
+        options.JsonSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+        options.JsonSerializerOptions.Converters.Add(new NullableUtcDateTimeConverter());
+    });
     builder.Services.AddMemoryCache();
     builder.Services.AddHttpClient();
-    builder.Services.AddSignalR();
+    builder.Services.AddSignalR().AddJsonProtocol(options =>
+    {
+        // The hub has its own serializer, so the converters registered for MVC above do
+        // not apply to it. A notification pushed live and the same notification fetched
+        // over HTTP would otherwise carry timestamps four hours apart.
+        options.PayloadSerializerOptions.Converters.Add(new UtcDateTimeConverter());
+        options.PayloadSerializerOptions.Converters.Add(new NullableUtcDateTimeConverter());
+        options.PayloadSerializerOptions.PropertyNamingPolicy =
+            System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
 
     builder.Services.AddWorkvivoLocalization();
     builder.Services.AddWorkvivoCors(builder.Configuration);
@@ -130,6 +148,13 @@ try
 
     app.MapControllers();
 
+    // The live notification channel. Mounted under /hubs, which is the only path the
+    // JWT handler accepts a query-string token for - a WebSocket handshake cannot send
+    // an Authorization header.
+    app.MapHub<NotificationHub>(NotificationHub.Path);
+
+    app.MapWorkvivoJobDashboard();
+
     // Two probes, because they answer different questions: "is the process alive"
     // (restart it if not) and "can it serve traffic" (route around it if not).
     app.MapHealthChecks("/health/live");
@@ -146,6 +171,11 @@ try
         using var scope = app.Services.CreateScope();
         await scope.ServiceProvider.GetRequiredService<DevelopmentDataSeeder>().SeedAsync();
     }
+
+    // Declared in code so a fresh environment has them without anybody remembering.
+    // With background jobs switched off the scheduler logs that they will not run,
+    // which is the visible failure mode the inline scheduler exists to provide.
+    app.Services.RegisterRecurringJobs();
 
     Log.Information(
         "Workvivo.API starting in {Environment}",

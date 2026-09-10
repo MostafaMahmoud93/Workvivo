@@ -196,18 +196,26 @@ public class Workvivo_DbContext : IdentityDbContext<ApplicationUser, UserGroup, 
                     "Cannot stamp audit fields: there is no signed-in user and no active administrator to fall back to.");
         }
 
+        // UtcNow, not Now.
+        //
+        // These columns were stamped with server-local time, which is defensible only
+        // for a system in one timezone. This product has offices in several, stores
+        // every other timestamp in UTC, and serialises them all through the same JSON
+        // converter - so a locally-stamped audit date came back four hours out and a
+        // notification created a minute ago read as "4h". Mixing the two in one column
+        // set has no correct interpretation on the client.
         foreach (var entry in ChangeTracker.Entries<FullBaseEntity<Guid>>())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
                     entry.Entity.Created_By = await ResolveAuditUserAsync();
-                    entry.Entity.Create_Date = DateTime.Now;
+                    entry.Entity.Create_Date = DateTime.UtcNow;
                     break;
 
                 case EntityState.Modified:
                     entry.Entity.Last_Modified_By ??= await ResolveAuditUserAsync();
-                    entry.Entity.Last_Modify_Date = DateTime.Now;
+                    entry.Entity.Last_Modify_Date = DateTime.UtcNow;
                     break;
 
             }
@@ -218,12 +226,12 @@ public class Workvivo_DbContext : IdentityDbContext<ApplicationUser, UserGroup, 
             {
                 case EntityState.Added:
                     entry.Entity.Created_By = await ResolveAuditUserAsync();
-                    entry.Entity.Create_Date = DateTime.Now;
+                    entry.Entity.Create_Date = DateTime.UtcNow;
                     break;
 
                 case EntityState.Modified:
                     entry.Entity.Last_Modified_By ??= await ResolveAuditUserAsync();
-                    entry.Entity.Last_Modify_Date = DateTime.Now;
+                    entry.Entity.Last_Modify_Date = DateTime.UtcNow;
                     break;
 
             }
@@ -236,12 +244,12 @@ public class Workvivo_DbContext : IdentityDbContext<ApplicationUser, UserGroup, 
                 {
                     case EntityState.Added:
                         entry.Entity.Created_By = await ResolveAuditUserAsync();
-                        entry.Entity.Create_Date = DateTime.Now;
+                        entry.Entity.Create_Date = DateTime.UtcNow;
                         break;
 
                     case EntityState.Modified:
                         entry.Entity.Last_Modified_By ??= await ResolveAuditUserAsync();
-                        entry.Entity.Last_Modify_Date = DateTime.Now;
+                        entry.Entity.Last_Modify_Date = DateTime.UtcNow;
                         break;
 
                 }

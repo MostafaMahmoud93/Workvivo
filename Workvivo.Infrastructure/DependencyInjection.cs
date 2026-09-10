@@ -5,7 +5,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Workvivo.Domain.Abstractions.Interfaces;
 using Workvivo.Infrastructure.Caching;
 using Workvivo.Infrastructure.Common;
+using Workvivo.Infrastructure.Email;
+using Workvivo.Infrastructure.Feed;
 using Workvivo.Infrastructure.Jobs;
+using Workvivo.Infrastructure.Realtime;
 using Workvivo.Infrastructure.Storage;
 
 namespace Workvivo.Infrastructure;
@@ -40,8 +43,50 @@ public static class DependencyInjection
         AddCaching(services, configuration);
         AddStorage(services, configuration);
         AddBackgroundJobs(services, configuration);
+        AddRealtime(services);
+        AddEmail(services, configuration);
+
+        // Reverse audience resolution - "who does this reach" - as opposed to
+        // IAudienceResolver's "what reaches this person". Scoped: it holds the
+        // request's DbContext.
+        services.AddScoped<IAudienceRecipientQuery, AudienceRecipientQuery>();
 
         return services;
+    }
+
+    /// <summary>
+    /// Real-time delivery.
+    ///
+    /// The hub itself is mapped by the API; this is only the outbound side, so
+    /// application code can push without knowing SignalR exists.
+    /// </summary>
+    private static void AddRealtime(IServiceCollection services)
+    {
+        services.AddSingleton<Microsoft.AspNetCore.SignalR.IUserIdProvider, UserIdProvider>();
+        services.AddSingleton<IRealtimeNotifier, SignalRRealtimeNotifier>();
+    }
+
+    private static void AddEmail(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<EmailOptions>()
+            .Bind(configuration.GetSection(EmailOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        var enabled = configuration.GetValue($"{EmailOptions.SectionName}:Enabled", false);
+        var host = configuration[$"{EmailOptions.SectionName}:Host"];
+
+        // Both a switch and a host. Enabled with no host configured is a deployment
+        // mistake that would otherwise surface as one failed job per notification,
+        // forever; falling back to the logging sender makes it visible and harmless.
+        if (enabled && !string.IsNullOrWhiteSpace(host))
+        {
+            services.AddSingleton<IEmailSender, SmtpEmailSender>();
+        }
+        else
+        {
+            services.AddSingleton<IEmailSender, LoggingEmailSender>();
+        }
     }
 
     private static void AddCaching(IServiceCollection services, IConfiguration configuration)

@@ -1706,3 +1706,273 @@ Not done: post editing (state changes are), attachments (needs file storage), th
 picker UI (the API stores and returns mentions; the composer does not yet offer them),
 scheduled publishing (the column and status exist; the job arrives with Hangfire), and
 `Feed_PostViews` is written by nothing yet, so announcement reach is not measurable.
+
+## Appendix I — Phase 7 record
+
+Notifications, real-time delivery and the background-job pipeline.
+
+### What was already there
+
+Phase 1 left abstractions with nothing behind them. Phase 7 is largely the act of
+honouring them rather than inventing anything new:
+
+| Left in Phase 1 | State before | State now |
+|---|---|---|
+| `IDomainEvent`, `IHasDomainEvents`, `AuditableEntity` | markers, never dispatched | drained after commit and published through MediatR |
+| `IRealtimeNotifier` | no implementation | SignalR, with a null implementation for hosts without it |
+| `IBackgroundJobScheduler` | Hangfire wired, disabled by configuration | enabled locally, five recurring jobs registered in code |
+| `Notification`, `NotificationUser` (template) | tables, zero readers or writers | the fan-out shape the whole feature is built on |
+| `NotificationPreference`, `NotificationType` | entity and enum, unused | the delivery decision |
+| JWT `OnMessageReceived` accepting `access_token` on `/hubs` | written, no hub existed | the hub is mounted there |
+
+The template's `Notification`/`NotificationUser` pair was reused rather than replaced.
+One notification row plus narrow per-recipient rows is exactly right for an
+announcement: a hundred thousand recipients cost one copy of the text.
+
+### Where a domain event is published
+
+`DomainEventDispatchBehavior` sits immediately outside `TransactionBehavior`:
+
+```
+logging -> performance -> validation -> caching -> events -> transaction -> handler
+```
+
+The ordering is the entire point. Publishing inside the transaction means a rollback
+leaves the side effect behind — the post is gone but four hundred people were told,
+and an email cannot be recalled. Publishing outside means an event is only ever raised
+for a write that committed.
+
+The trade in the other direction is real: a crash between the commit and the dispatch
+loses the notification silently. That is the lesser failure, and the seam for fixing it
+properly is `IUnitOfWork.DrainDomainEvents` — a transactional outbox would write rows
+there instead of returning a list, and nothing else would change.
+
+A subscriber that throws is logged, not propagated. The command succeeded; turning it
+into a 500 would be a lie about what happened.
+
+### Publishing a post is now one method
+
+Three code paths reached the same three field assignments — the composer with "post
+now", a moderator publishing a draft, and the scheduler. `Post.Publish(utcNow,
+mentions)` is now the only one, and it returns `false` when the post is already
+published. That idempotency is what stops a double-click moving `Published_Date` and
+pushing a week-old post back to the top of every feed while notifying its audience
+again.
+
+### Who hears about what
+
+`NotificationDispatcher` is the single place a notification is created, so the rules
+are stated once:
+
+- the actor is removed from the recipients — nobody is told about their own click;
+- recipients are deduplicated;
+- inactive employees are dropped;
+- `NotificationPreference` decides each channel, and absence of a row means
+  `NotificationDefaults`;
+- immediate email is **queued**, never sent inline;
+- a failed real-time push is logged and swallowed — the row is already committed.
+
+`NotificationDefaults` matters more than it looks. Almost nobody edits their settings,
+so the defaults are what almost everybody gets: in-app for everything, email only for
+things a person would be sorry to miss. Reactions, comments and new followers are
+in-app only, and default to a digest cadence rather than off, so switching them on
+yields one message a day instead of forty.
+
+### Overlapping recipients
+
+One comment can concern the same person three ways — they wrote the post, they wrote
+the comment being replied to, and they were mentioned. `CommentAddedNotificationHandler`
+claims recipients in order of specificity (mention, then reply, then comment) and each
+notification removes its recipients from the pool. Three notifications for one comment
+is how people learn to ignore the bell.
+
+### Announcements do not go through the dispatcher
+
+The dispatcher is built for a handful of named people. An official announcement
+addresses whoever the audience rules select, which can be everybody, so
+`PostPublishedNotificationHandler` enqueues `AnnouncementFanOutJob` instead. That job
+writes one notification row, then pages recipients 500 at a time, inserting delivery
+rows per batch and clearing the change tracker between them.
+
+This needed the reverse of the feed's targeting. `IAudienceResolver` answers "what
+reaches this person"; `IAudienceRecipientQuery` answers "who does this reach". Every
+dimension is a column comparison except department, which is expanded through the
+materialised path into its subtree first — a prefix range scan on an indexed column
+rather than a recursive CTE.
+
+Verified against the seeded organisation: an announcement targeted at Technology
+reached Yusuf (Platform, three levels below) and Tariq (Applications, two levels below)
+and did not reach Rami (Finance), who received only the company-wide one. The author is
+excluded from their own announcement.
+
+### Recurring jobs
+
+Declared in code at startup, so a fresh environment has them without anybody
+remembering, and so a schedule change is reviewable in a diff.
+
+| Job | Cron (UTC) | Why |
+|---|---|---|
+| `posts:publish-scheduled` | every minute | Scheduled posts. Cheap: "nothing due" is a seek returning no rows. |
+| `feed:reconcile-counters` | 02:30 daily | Repairs denormalised counters. |
+| `notifications:digest-hourly` | :05 hourly | Batched email. |
+| `notifications:digest-daily` | 07:00 | Early morning across the Gulf offices. |
+| `notifications:digest-weekly` | 07:00 Monday | So it arrives when people are back. |
+
+The Hangfire dashboard is mounted at `/jobs` **in development only**, behind a
+loopback-only filter. It is not exposed elsewhere on purpose: it lets anyone who
+reaches it requeue and delete jobs, and its authorisation filter runs against a browser
+navigation, which carries no bearer token because this API's SPA holds the token in
+memory. Shipping it behind a filter that cannot see the caller would be worse than not
+shipping it — it would look protected. Operating it in production means a cookie scheme
+scoped to that path or an authenticated reverse proxy, and that is a deployment-phase
+decision.
+
+### Three bugs found
+
+**1. The counter drift from Phase 6 was real, and is now fixed.** The seeded post read
+eight comments against six rows, because two were deleted directly in SQL during the
+cross-site-scripting investigation. `CounterReconciliationJob` corrected it on its first
+run and logged it at Warning — drift means something wrote to those tables without going
+through the application, which is worth somebody knowing rather than being silently
+corrected every night forever. The job is windowed to thirty days: a full sweep of a
+table with millions of posts is not a nightly job.
+
+**2. Every timestamp the API returned was wrong by the client's UTC offset.** A
+`datetime2` column materialises with `DateTimeKind.Unspecified`, and
+`System.Text.Json` writes such a value with no offset at all —
+`"2026-09-10T04:41:10.37"`. Every browser parses that as *local* time. A notification
+created one minute earlier rendered as "4h ago" on a machine four hours ahead of UTC.
+Nothing errored; the times were simply wrong, everywhere, by exactly the offset. This
+had been true since Phase 6 and the feed's relative times were wrong too — it went
+unnoticed because "4h" on a seeded post looks plausible and "4h" on something you just
+did does not.
+
+Two changes: `UtcDateTimeConverter` (registered for MVC *and* for the SignalR payload
+serializer, which has its own options) writes every `DateTime` as UTC with a trailing
+`Z`; and the DbContext's audit stamping moved from `DateTime.Now` to `DateTime.UtcNow`.
+The second is a change to template behaviour, made deliberately: storing server-local
+time in some columns and UTC in others has no correct interpretation on a client, and
+this product has offices in several timezones. Rows stamped before this change read
+four hours ahead of their real time; that is development data only.
+
+**3. A SignalR connection failure could take down an unrelated part of the app.**
+`HubConnectionBuilder.build()` throws *synchronously* when the environment cannot
+support a transport. The original guard wrapped only `start()`, so the throw escaped an
+Angular `effect` and surfaced as an unhandled error — which is exactly what happened,
+failing three unrelated routing tests. Real-time is an enhancement; every notification
+is also a row the client can fetch, so nothing in that path may break the page. The
+whole connection setup is now guarded.
+
+### Language
+
+Notification copy is written in both languages at send time rather than rendered per
+reader. A notification is a record of something that happened: if somebody changes their
+display name next month, "Layla commented on your post" should still say Layla.
+
+This surfaced a gap. Server-provided text is chosen by request culture through
+`AcceptLanguageHeaderRequestCultureProvider`, and the browser's own `Accept-Language`
+reflects the operating system, not the toggle in the header bar — so an employee who
+switched the interface to Arabic kept getting English notifications. `localeInterceptor`
+now sends the chosen culture on every request.
+
+One inconsistency remains by design: a notification pushed over the hub is rendered in
+the recipient's stored `Preferred_Language`, because a background push has no request
+culture. If somebody has switched the interface to a language that differs from their
+profile setting, a live-pushed notification arrives in the profile language and
+corrects itself on the next fetch.
+
+### Email
+
+`IEmailSender` is a new abstraction beside the template's `IMailService`, not a
+replacement. `IMailService` renders a numbered template from the database, records a
+history row, and accepts `IFormFile` attachments — none of which can cross a job
+boundary. `IEmailSender` takes a composed `EmailMessage` of plain data.
+
+`SmtpEmailSender` connects with explicit `StartTls` rather than `Auto`, which would
+fall back to an unencrypted session when the server does not advertise STARTTLS.
+Undeliverable addresses are logged and swallowed: one bad mailbox in a four-hundred
+person digest must not fail the job and have it retried against everybody else.
+
+`LoggingEmailSender` is the default — email is off unless both `Email:Enabled` and a
+host are configured, so a development machine with real credentials in its environment
+does not mail seeded employees the first time somebody comments on a test post. The log
+records the subject and recipients but never the body, because a digest body quotes
+colleagues' posts and a log file should not become a copy of the feed.
+
+### Security decisions
+
+- **The recipient is never an input.** No endpoint here takes an employee or user id;
+  every handler reads the caller from the token. `MarkNotificationsReadCommand` filters
+  on the caller's id *and* the supplied ids, so marking somebody else's notification
+  read affects zero rows. Verified: one employee's attempt against another's
+  notification returned `0` and left the other's unread count unchanged.
+- **No permission gate on this controller, deliberately.** Reading your own
+  notifications is not a privilege an administrator grants, and gating it would let a
+  misconfigured role switch somebody's bell off with no way to turn it back on.
+- **The hub exposes no client-callable methods.** A hub method is an API endpoint people
+  forget to secure; the server pushes and the client listens.
+- **`[Authorize]` on the hub is load-bearing.** Without it the hub accepts anonymous
+  connections and `Context.UserIdentifier` is null, at which point every user-targeted
+  send silently goes nowhere.
+- **A unique index on `(Notification_Id, Reciever_Id)`.** A retried fan-out job would
+  otherwise double everyone's bell.
+- **Email bodies are HTML-encoded at render.** The text has already been through the
+  sanitiser as plain text; encoding again at the point of rendering means a future
+  caller that forgets cannot turn a colleague's post into markup inside an inbox.
+
+### Schema
+
+`NotificationDelivery` migration:
+
+- `Notifications`: `Actor_Employee_Id`, `Entity_Type`, `Entity_Id`, `Creator_User_Id`.
+- `NotificationUsers`: `Create_Date`, `Seen_Date`.
+- Indexes: `IX_NotificationUsers_Recipient` on `(Reciever_Id, Create_Date DESC)`,
+  filtered `IX_NotificationUsers_Unread`, unique `UX_NotificationUsers_Delivery`,
+  `IX_Notifications_Entity`.
+
+The creator relationship moved off `Created_By` onto its own nullable
+`Creator_User_Id`. `Created_By` is the audit stamp — non-nullable, written by the
+DbContext for every entity — and hanging a foreign key off it meant a notification
+could only exist if a signed-in user created it, which a scheduled announcement or a
+nightly digest cannot satisfy. Satisfying the key by inventing a system account would
+put a user in the audit trail who never did anything. Both navigations are unchanged.
+
+`Create_Date` on `NotificationUsers` is denormalised from the parent on purpose: the
+most-hit query in the product is "my notifications, newest first", and ordering by a
+column on the other side of a join cannot be served by one index.
+
+The scaffolded default for that column was `DateTime.MinValue`; it was changed to
+`SYSUTCDATETIME()`. The table is empty so nothing was backfilled, but a default of year
+1 turns any future insert that forgets the column into a row that sorts to the bottom of
+somebody's list forever.
+
+### Testing
+
+227 backend tests (was 193) and 26 Angular tests (was 18), all passing.
+
+`TestAsyncQueryable` was added so handlers can be exercised against substituted
+repositories — a plain `List<T>.AsQueryable()` throws the moment a handler awaits
+anything. It deliberately does not model what the database enforces: unique indexes,
+check constraints, `ExecuteUpdate`. Rules that live there need an integration test, and
+pretending otherwise would be a test that passes while production fails.
+
+Browser and API verification: comment, reply, mention, reaction and announcement
+notifications each arriving once with the right copy and deep link; self-notification
+suppressed; cross-user mark-read refused; the badge incrementing live over the hub with
+no reload; Arabic and English both rendering with the layout mirrored; a scheduled post
+publishing on its own and notifying the person it mentioned.
+
+### Known gaps
+
+- **Push is not implemented.** The preference column exists and defaults to off.
+- **The digest window is derived from the frequency, not stored per employee.** A
+  missed run silently skips that period; a replayed one sends twice. Storing a "last
+  digest sent" timestamp per person is more precise and considerably more fragile.
+- **The permission cache still means a direct-database permission change takes up to
+  five minutes to take effect.** Unchanged from Phase 3.
+- **No aggregation.** Twenty people reacting to a post produces twenty notifications
+  rather than "twenty people reacted". The `(Entity_Type, Entity_Id)` index is there for
+  when it is built.
+- **`Feed_PostViews` is still written by nothing**, so announcement reach is not
+  measurable. Analytics is Phase 14.
+- **No retention job.** Notification rows accumulate forever.

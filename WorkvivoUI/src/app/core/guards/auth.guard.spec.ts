@@ -22,6 +22,20 @@ describe('route protection', () => {
   afterEach(() => http.verify());
 
   /**
+   * Answers the bell's start-up request.
+   *
+   * Rendering the shell now mounts the notification bell, which asks for the unread
+   * count as soon as it exists. That is a real request these navigations cause, so the
+   * tests answer it rather than the suite asserting no traffic and failing on
+   * behaviour it should be exercising.
+   */
+  function answerUnreadCount(): void {
+    for (const request of http.match('/api/notifications/unread-count')) {
+      request.flush({ success: true, message: '', data: { unread: 0 } });
+    }
+  }
+
+  /**
    * The guards ask the API whether the refresh cookie is still good, because the access
    * token is never persisted - after a reload there is nothing local to inspect.
    */
@@ -57,6 +71,7 @@ describe('route protection', () => {
 
     await answerRestore(true);
     await navigation;
+    answerUnreadCount();
 
     expect(TestBed.inject(Router).url).toBe('/home');
   });
@@ -67,6 +82,7 @@ describe('route protection', () => {
 
     await answerRestore(true);
     await navigation;
+    answerUnreadCount();
 
     expect(TestBed.inject(Router).url).toBe('/home');
   });

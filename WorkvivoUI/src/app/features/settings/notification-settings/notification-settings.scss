@@ -1,0 +1,121 @@
+.prefs {
+  max-width: 52rem;
+  margin: 0 auto;
+}
+
+.prefs__head {
+  margin-bottom: 1.5rem;
+
+  h1 {
+    margin: 0 0 0.35rem;
+    font-size: 1.4rem;
+  }
+
+  p {
+    margin: 0;
+    color: var(--wv-text-muted);
+    font-size: 0.9rem;
+  }
+}
+
+.prefs__hint {
+  color: var(--wv-text-muted);
+}
+
+.prefs__table {
+  border: 1px solid var(--wv-line);
+  border-radius: var(--wv-radius-lg);
+  background: var(--wv-surface);
+  overflow: hidden;
+}
+
+.prefs__row {
+  display: grid;
+
+  /* The type name takes the slack; the three controls stay a fixed, scannable width. */
+  grid-template-columns: 1fr 5rem 5rem 10rem;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem;
+  border-bottom: 1px solid var(--wv-line);
+
+  &:last-child {
+    border-bottom: 0;
+  }
+
+  span[role='cell'] {
+    text-align: center;
+  }
+
+  /* The name reads as a label, so it stays with the column heading rather than
+     drifting into the middle of its cell. */
+  span[role='cell'].prefs__type {
+    text-align: start;
+  }
+}
+
+.prefs__row--head {
+  background: var(--wv-surface-sunken);
+  color: var(--wv-text-muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  span {
+    text-align: center;
+  }
+
+  span:first-child {
+    text-align: start;
+  }
+}
+
+.prefs__type {
+  font-size: 0.9rem;
+}
+
+.prefs__select {
+  width: 100%;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--wv-line-strong);
+  border-radius: var(--wv-radius-sm);
+  background: var(--wv-surface);
+  font: inherit;
+  font-size: 0.82rem;
+
+  &:disabled {
+    color: var(--wv-text-faint);
+    background: var(--wv-surface-sunken);
+  }
+}
+
+.prefs__foot {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+}
+
+.prefs__ok {
+  color: var(--wv-text-muted);
+  font-size: 0.85rem;
+}
+
+.prefs__error {
+  color: var(--wv-danger);
+  font-size: 0.85rem;
+}
+
+@media (max-width: 40rem) {
+  .prefs__row {
+    grid-template-columns: 1fr 3rem 3rem;
+    grid-template-areas:
+      'type inApp email'
+      'frequency frequency frequency';
+  }
+
+  .prefs__row span:last-child {
+    grid-area: frequency;
+  }
+}

@@ -4,6 +4,7 @@ using Workvivo.Domain.Entities.BaseEntities;
 using Workvivo.Domain.Entities.Communities;
 using Workvivo.Domain.Entities.Documents;
 using Workvivo.Domain.Entities.Organization;
+using Workvivo.Domain.Events;
 
 namespace Workvivo.Domain.Entities.Feed;
 
@@ -99,4 +100,53 @@ public class Post : AuditableEntity<Guid>
         && Status == PostStatus.Published
         && Published_Date is not null
         && Published_Date <= utcNow;
+
+    /// <summary>
+    /// Makes the post visible and records that it happened.
+    ///
+    /// Three code paths publish a post - creating one with "post now", a moderator
+    /// publishing a draft, and the scheduler reaching a scheduled time. Before this
+    /// method each set the same three fields itself, which is exactly the kind of
+    /// triplication where one copy quietly stops raising the notification.
+    ///
+    /// Returns false when the post was already published. Re-publishing must not move
+    /// <see cref="Published_Date"/>, which would push a week-old post back to the top of
+    /// everyone's feed, and must not notify the audience a second time.
+    /// </summary>
+    /// <param name="mentionedEmployeeIds">
+    /// Who was mentioned. Optional: when omitted the loaded <see cref="Mentions"/> are
+    /// used, which is what the scheduler has and what the create path does not yet.
+    /// </param>
+    public bool Publish(DateTime utcNow, IReadOnlyList<Guid>? mentionedEmployeeIds = null)
+    {
+        if (Status == PostStatus.Published)
+        {
+            return false;
+        }
+
+        Status = PostStatus.Published;
+        Published_Date ??= utcNow;
+        Scheduled_Publish_Date = null;
+
+        Raise(new PostPublishedDomainEvent(
+            Id,
+            Author_Employee_Id,
+            Community_Id,
+            Is_Official,
+            mentionedEmployeeIds ?? [.. Mentions.Select(mention => mention.Mentioned_Employee_Id)],
+            utcNow));
+
+        return true;
+    }
+
+    /// <summary>
+    /// Records that somebody reacted, so the author can be told.
+    ///
+    /// Raised for a new or changed reaction and not for a withdrawn one. Whether the
+    /// author actually hears about it - they did not react to their own post, they have
+    /// not switched reactions off - is the dispatcher's decision, stated once there
+    /// rather than re-implemented at every call site.
+    /// </summary>
+    public void RecordReaction(Guid actorEmployeeId, ReactionType reaction, DateTime occurredOnUtc) =>
+        Raise(new PostReactedDomainEvent(Id, Author_Employee_Id, actorEmployeeId, reaction, occurredOnUtc));
 }

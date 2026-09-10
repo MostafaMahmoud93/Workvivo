@@ -125,6 +125,33 @@ public class UnitOfWork : IUnitOfWork
         return (IBaseRepository<T, TKey>)repository;
     }
 
+    /// <inheritdoc />
+    public IReadOnlyList<IDomainEvent> DrainDomainEvents()
+    {
+        // The change tracker is the only place that knows which entities took part in
+        // this unit of work, so it is also the only place that can find their events
+        // without every handler having to hand them over by hand.
+        var carriers = _dbContext.ChangeTracker
+            .Entries<IHasDomainEvents>()
+            .Where(entry => entry.Entity.DomainEvents.Count > 0)
+            .Select(entry => entry.Entity)
+            .ToList();
+
+        if (carriers.Count == 0)
+        {
+            return [];
+        }
+
+        var events = carriers.SelectMany(carrier => carrier.DomainEvents).ToList();
+
+        foreach (var carrier in carriers)
+        {
+            carrier.ClearDomainEvents();
+        }
+
+        return events;
+    }
+
     public async Task<int> SaveChangesAsync() => await _dbContext.SaveChangesAsync();
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken) =>
         await _dbContext.SaveChangesAsync(cancellationToken);

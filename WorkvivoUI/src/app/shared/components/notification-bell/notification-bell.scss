@@ -1,0 +1,172 @@
+:host {
+  position: relative;
+  display: inline-flex;
+}
+
+.bell {
+  position: relative;
+}
+
+.bell__button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: transparent;
+  cursor: pointer;
+
+  &:hover,
+  &.is-open {
+    background: var(--wv-hover);
+    border-color: var(--wv-line);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--wv-focus);
+    outline-offset: 2px;
+  }
+}
+
+.bell__glyph {
+  font-size: 1.05rem;
+  line-height: 1;
+}
+
+.bell__badge {
+  position: absolute;
+  top: -2px;
+  inset-inline-end: -2px;
+  min-width: 1.05rem;
+  padding: 0 0.25rem;
+  border-radius: 999px;
+  background: var(--wv-danger);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 700;
+  line-height: 1.05rem;
+  text-align: center;
+}
+
+.bell__panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+
+  /* Anchored to the end edge so the panel mirrors with the layout instead of
+     hanging off the screen in Arabic. */
+  inset-inline-end: 0;
+  z-index: 40;
+  width: min(22rem, calc(100vw - 2rem));
+  border: 1px solid var(--wv-line);
+  border-radius: var(--wv-radius-lg);
+  background: var(--wv-surface);
+  box-shadow: var(--wv-shadow-3);
+  overflow: hidden;
+}
+
+.bell__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 0.9rem;
+  border-bottom: 1px solid var(--wv-line);
+
+  h2 {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+.bell__actions {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.bell__list {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.bell__hint {
+  margin: 0;
+  padding: 1.5rem 0.9rem;
+  color: var(--wv-text-muted);
+  font-size: 0.85rem;
+  text-align: center;
+}
+
+.bell__item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.7rem 0.9rem;
+  border: 0;
+  border-bottom: 1px solid var(--wv-line);
+  background: transparent;
+  text-align: start;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--wv-hover);
+  }
+
+  &.is-unread {
+    background: var(--wv-accent-soft);
+  }
+
+  &:last-child {
+    border-bottom: 0;
+  }
+}
+
+.bell__icon {
+  flex: none;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.bell__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.bell__header {
+  color: var(--wv-text);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.bell__content {
+  color: var(--wv-text-muted);
+  font-size: 0.8rem;
+
+  /* Two lines, then ellipsis: a quoted post can be long and the panel is not where
+     it should be read. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.bell__when {
+  color: var(--wv-text-faint);
+  font-size: 0.72rem;
+}
+
+.bell__dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-top: 0.35rem;
+  border-radius: 50%;
+  background: var(--wv-accent);
+}

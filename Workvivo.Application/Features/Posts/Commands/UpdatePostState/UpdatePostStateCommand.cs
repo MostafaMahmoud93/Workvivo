@@ -60,16 +60,15 @@ public sealed class UpdatePostStateCommandHandler : IRequestHandler<UpdatePostSt
         switch (request.Action)
         {
             case PostStateAction.Publish:
-                if (post.Status == PostStatus.Published)
+                // Idempotent, and the domain says so: Publish returns false when the
+                // post is already published, which must not move Published_Date and push
+                // an old post back to the top of everyone's feed - nor notify its
+                // audience a second time.
+                if (!post.Publish(_clock.UtcNow))
                 {
-                    // Idempotent: re-publishing must not move Published_Date and push an
-                    // old post back to the top of everyone's feed.
                     return;
                 }
 
-                post.Status = PostStatus.Published;
-                post.Published_Date ??= _clock.UtcNow;
-                post.Scheduled_Publish_Date = null;
                 break;
 
             case PostStateAction.Archive:

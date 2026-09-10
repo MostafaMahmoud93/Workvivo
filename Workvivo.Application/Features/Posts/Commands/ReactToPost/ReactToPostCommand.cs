@@ -51,6 +51,7 @@ public sealed class ReactToPostCommandHandler : IRequestHandler<ReactToPostComma
                 cancellationToken);
 
         var delta = 0;
+        var reacted = false;
 
         if (request.Reaction is { } reaction)
         {
@@ -67,11 +68,17 @@ public sealed class ReactToPostCommandHandler : IRequestHandler<ReactToPostComma
                 });
 
                 delta = 1;
+                reacted = true;
             }
             else
             {
                 // Changing Love to Celebrate updates the row. The total is unchanged;
                 // only the per-type breakdown moves.
+                //
+                // Still worth telling the author about: from their side somebody
+                // reacted, and which reaction it is is the part they see.
+                reacted = existing.Reaction_Type != reaction;
+
                 existing.Reaction_Type = reaction;
                 existing.Reacted_At = _clock.UtcNow;
             }
@@ -97,6 +104,13 @@ public sealed class ReactToPostCommandHandler : IRequestHandler<ReactToPostComma
                     candidate => candidate.Reactions_Count,
                     candidate => candidate.Reactions_Count + delta),
                 cancellationToken);
+        }
+
+        if (reacted)
+        {
+            // Nothing is raised for a withdrawn reaction. There is no notification
+            // worth sending for "a colleague took their like back".
+            post.RecordReaction(employeeId, request.Reaction!.Value, _clock.UtcNow);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

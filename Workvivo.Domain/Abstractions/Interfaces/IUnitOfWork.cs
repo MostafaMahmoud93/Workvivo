@@ -76,6 +76,20 @@ public interface IUnitOfWork
 
     #endregion
 
+    /// <summary>
+    /// Takes every domain event raised during this unit of work and clears them from
+    /// the entities that raised them.
+    ///
+    /// Draining rather than reading: the caller now owns the events, and a second call
+    /// returns nothing. That is what stops the same "you were mentioned" notification
+    /// being sent twice when a handler saves more than once.
+    ///
+    /// Nothing is dispatched here. Events are published after the transaction commits,
+    /// because a notification or an email raised inside it survives a rollback and
+    /// there is no way to take an email back.
+    /// </summary>
+    IReadOnlyList<IDomainEvent> DrainDomainEvents();
+
     void RejectChanges();
     void ClearTracker();
     void Dispose();

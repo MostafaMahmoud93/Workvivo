@@ -1,0 +1,80 @@
+<section class="prefs">
+  <header class="prefs__head">
+    <h1>{{ text().notificationSettings.heading }}</h1>
+    <p>{{ text().notificationSettings.lede }}</p>
+  </header>
+
+  @if (loading()) {
+    <p class="prefs__hint">{{ text().notifications.loading }}</p>
+  } @else if (isEmpty()) {
+    <p class="prefs__hint">{{ text().notificationSettings.unavailable }}</p>
+  } @else {
+    <div class="prefs__table" role="table">
+      <div class="prefs__row prefs__row--head" role="row">
+        <span role="columnheader">{{ text().notificationSettings.type }}</span>
+        <span role="columnheader">{{ text().notificationSettings.inApp }}</span>
+        <span role="columnheader">{{ text().notificationSettings.email }}</span>
+        <span role="columnheader">{{ text().notificationSettings.frequency }}</span>
+      </div>
+
+      @for (row of rows(); track row.type) {
+        <div class="prefs__row" role="row">
+          <span class="prefs__type" role="cell">{{ typeLabel(row.type) }}</span>
+
+          <span role="cell">
+            <input
+              type="checkbox"
+              [attr.aria-label]="text().notificationSettings.inApp + ' - ' + typeLabel(row.type)"
+              [checked]="row.inApp"
+              (change)="setInApp(row.type, $any($event.target).checked)"
+            />
+          </span>
+
+          <span role="cell">
+            <input
+              type="checkbox"
+              [attr.aria-label]="text().notificationSettings.email + ' - ' + typeLabel(row.type)"
+              [checked]="row.email"
+              (change)="setEmail(row.type, $any($event.target).checked)"
+            />
+          </span>
+
+          <span role="cell">
+            <!--
+              [selected] on the option, not [value] on the select. Binding the value
+              sets the property before @for has rendered the options, so nothing
+              matches and every row falls back to showing the first one - which read as
+              "as it happens" for types that actually default to a daily digest.
+            -->
+            <select
+              class="prefs__select"
+              [attr.aria-label]="text().notificationSettings.frequency + ' - ' + typeLabel(row.type)"
+              [disabled]="!row.email"
+              (change)="setFrequency(row.type, $any($event.target).value)"
+            >
+              @for (frequency of frequencies; track frequency) {
+                <option [value]="frequency" [selected]="frequency === row.emailFrequency">
+                  {{ frequencyLabel(frequency) }}
+                </option>
+              }
+            </select>
+          </span>
+        </div>
+      }
+    </div>
+
+    <footer class="prefs__foot">
+      <button type="button" class="wv-btn wv-btn--primary" [disabled]="saving()" (click)="save()">
+        {{ saving() ? text().notificationSettings.saving : text().notificationSettings.save }}
+      </button>
+
+      @if (saved()) {
+        <span class="prefs__ok">{{ text().notificationSettings.saved }}</span>
+      }
+
+      @if (failed()) {
+        <span class="prefs__error">{{ text().notificationSettings.failed }}</span>
+      }
+    </footer>
+  }
+</section>

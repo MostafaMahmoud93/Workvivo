@@ -5017,6 +5017,9 @@ namespace Workvivo.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("Actor_Employee_Id")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<string>("Content_Ar")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
@@ -5031,13 +5034,24 @@ namespace Workvivo.Infrastructure.Migrations
                     b.Property<Guid>("Created_By")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<Guid?>("Creator_User_Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("Entity_Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Entity_Type")
+                        .HasColumnType("int");
+
                     b.Property<string>("Header_Ar")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<string>("Header_En")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
 
                     b.Property<bool>("Is_Deleted")
                         .HasColumnType("bit");
@@ -5050,17 +5064,24 @@ namespace Workvivo.Infrastructure.Migrations
 
                     b.Property<string>("Notification_Status")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.Property<int>("Notification_Type")
                         .HasColumnType("int");
 
                     b.Property<string>("RedirectUrl")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(2048)
+                        .HasColumnType("nvarchar(2048)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Created_By");
+                    b.HasIndex("Actor_Employee_Id");
+
+                    b.HasIndex("Creator_User_Id");
+
+                    b.HasIndex("Entity_Type", "Entity_Id")
+                        .HasDatabaseName("IX_Notifications_Entity");
 
                     b.ToTable("Notifications");
                 });
@@ -5119,6 +5140,9 @@ namespace Workvivo.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime>("Create_Date")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("IS_Seen")
                         .HasColumnType("bit");
 
@@ -5131,11 +5155,22 @@ namespace Workvivo.Infrastructure.Migrations
                     b.Property<Guid>("Reciever_Id")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("Seen_Date")
+                        .HasColumnType("datetime2");
+
                     b.HasKey("Id");
 
-                    b.HasIndex("Notification_Id");
+                    b.HasIndex("Reciever_Id")
+                        .HasDatabaseName("IX_NotificationUsers_Unread")
+                        .HasFilter("[IS_Seen] = 0 AND [Is_Deleted] = 0");
 
-                    b.HasIndex("Reciever_Id");
+                    b.HasIndex("Notification_Id", "Reciever_Id")
+                        .IsUnique()
+                        .HasDatabaseName("UX_NotificationUsers_Delivery");
+
+                    b.HasIndex("Reciever_Id", "Create_Date")
+                        .IsDescending(false, true)
+                        .HasDatabaseName("IX_NotificationUsers_Recipient");
 
                     b.ToTable("NotificationUsers");
                 });
@@ -6715,11 +6750,17 @@ namespace Workvivo.Infrastructure.Migrations
 
             modelBuilder.Entity("Workvivo.Domain.Entities.RealTime.Notification", b =>
                 {
+                    b.HasOne("Workvivo.Domain.Entities.Organization.Employee", "Actor")
+                        .WithMany()
+                        .HasForeignKey("Actor_Employee_Id")
+                        .OnDelete(DeleteBehavior.NoAction);
+
                     b.HasOne("Workvivo.Domain.Entities.Identity.ApplicationUser", "CreatorUser")
                         .WithMany("Notifications")
-                        .HasForeignKey("Created_By")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .HasForeignKey("Creator_User_Id")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Actor");
 
                     b.Navigation("CreatorUser");
                 });

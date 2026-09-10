@@ -53,6 +53,17 @@ export const routes: Routes = [
           ),
       },
       {
+        // No permission guard: every employee manages their own notifications, and
+        // gating that behind a grantable permission would let a misconfigured role
+        // switch somebody's bell off with no way for them to turn it back on.
+        path: 'settings/notifications',
+        title: 'Notification settings - Workvivo',
+        loadComponent: () =>
+          import('./features/settings/notification-settings/notification-settings').then(
+            (m) => m.NotificationSettings,
+          ),
+      },
+      {
         path: 'profile',
         title: 'My profile - Workvivo',
         loadComponent: () =>

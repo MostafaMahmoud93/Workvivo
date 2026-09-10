@@ -61,7 +61,7 @@ public sealed class AddCommentCommandHandler : IRequestHandler<AddCommentCommand
                 "Comments are turned off for this post.", "comment.disabled");
         }
 
-        var depth = await ResolveDepthAsync(request, cancellationToken);
+        var (depth, parentAuthorId) = await ResolveParentAsync(request, cancellationToken);
 
         var comment = new Comment
         {
@@ -98,29 +98,40 @@ public sealed class AddCommentCommandHandler : IRequestHandler<AddCommentCommand
                 cancellationToken);
         }
 
+        // Raised once the mentions are attached, because the event carries them, and
+        // before the save, because the pipeline drains the events after the commit.
+        comment.RecordAdded(post.Author_Employee_Id, parentAuthorId, _clock.UtcNow);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return comment.Id;
     }
 
     /// <summary>
-    /// Works out how deep this comment sits, and refuses to go past the cap.
+    /// Works out how deep this comment sits and who it is answering, refusing to go
+    /// past the cap.
     ///
     /// The depth is taken from the parent rather than trusted from the request - a
     /// caller supplying its own depth could nest without limit, and the cap exists to
     /// keep threads readable on a phone and reply queries bounded.
+    ///
+    /// The parent's author comes back from the same query rather than a second one:
+    /// the notification needs it, and it is one column further along a row already
+    /// being read.
     /// </summary>
-    private async Task<int> ResolveDepthAsync(AddCommentCommand request, CancellationToken cancellationToken)
+    private async Task<(int Depth, Guid? ParentAuthorId)> ResolveParentAsync(
+        AddCommentCommand request,
+        CancellationToken cancellationToken)
     {
         if (request.ParentCommentId is not { } parentId)
         {
-            return 0;
+            return (0, null);
         }
 
         var parent = await _unitOfWork.Repository<Comment, Guid>()
             .GetAllQ()
             .Where(comment => comment.Id == parentId && comment.Post_Id == request.PostId)
-            .Select(comment => new { comment.Depth })
+            .Select(comment => new { comment.Depth, comment.Author_Employee_Id })
             .FirstOrDefaultAsync(cancellationToken)
             ?? throw new NotFoundException(nameof(Comment), parentId);
 
@@ -128,9 +139,14 @@ public sealed class AddCommentCommandHandler : IRequestHandler<AddCommentCommand
         // check constraint, so neither a new code path nor a direct insert can exceed it.
         var replyDepth = new Comment { Depth = parent.Depth }.ReplyDepth();
 
-        return replyDepth ?? throw new BusinessRuleException(
-            "This conversation cannot be nested any deeper. Reply to the comment above instead.",
-            "comment.max-depth");
+        if (replyDepth is null)
+        {
+            throw new BusinessRuleException(
+                "This conversation cannot be nested any deeper. Reply to the comment above instead.",
+                "comment.max-depth");
+        }
+
+        return (replyDepth.Value, parent.Author_Employee_Id);
     }
 
     private async Task AddMentionsAsync(
